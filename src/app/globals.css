@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+:root {
+  --orange: #f97316;
+  --red: #dc2626;
+  --cream: #fff7ed;
+}
+
+body {
+  background: var(--cream);
+  color: #1f2937;
+}
