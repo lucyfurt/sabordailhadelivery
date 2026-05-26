@@ -1,12 +1,5 @@
 import { STORE } from "@/lib/store";
-
-export interface MealType {
-  id: string;
-  name: string;
-  description: string;
-  priceCents: number;
-  emoji: string;
-}
+import type { MealTypeItem } from "@/types/menu";
 
 export interface MenuOption {
   id: string;
@@ -14,33 +7,50 @@ export interface MenuOption {
   available: boolean;
 }
 
-export const MEAL_TYPES: MealType[] = [
+/** Fallback local quando Supabase não está configurado */
+export const FALLBACK_MEAL_TYPES: Omit<
+  MealTypeItem,
+  "created_at" | "updated_at"
+>[] = [
   {
     id: "pf",
+    slug: "pf",
     name: "PF Caseiro",
     description:
-      "Arroz, feijão, macarrão, salada e proteína do dia — você escolhe os 4 acompanhamentos.",
-    priceCents: 1990,
+      "Arroz, feijão, macarrão, salada e proteína do dia — você escolhe os acompanhamentos.",
+    price_cents: 1990,
     emoji: "🍱",
+    required_proteins: 1,
+    required_sides: 4,
+    available: true,
+    position: 0,
   },
   {
     id: "executiva",
+    slug: "executiva",
     name: "Marmita Executiva",
-    description: "Porção reforçada: proteína em dobro na prática + 4 acompanhamentos.",
-    priceCents: 2490,
+    description: "Porção reforçada com proteína e acompanhamentos à sua escolha.",
+    price_cents: 2490,
     emoji: "🔥",
+    required_proteins: 1,
+    required_sides: 4,
+    available: true,
+    position: 1,
   },
   {
     id: "fit",
+    slug: "fit",
     name: "Marmita Fit",
-    description:
-      "Linha mais leve: frango grelhado, legumes e arroz integral entre as opções.",
-    priceCents: 2290,
+    description: "Linha mais leve — monte com as opções do cardápio.",
+    price_cents: 2290,
     emoji: "🥗",
+    required_proteins: 1,
+    required_sides: 4,
+    available: true,
+    position: 2,
   },
 ];
 
-/** Proteínas do dia — marque `available: false` quando acabar */
 export const PROTEINS: MenuOption[] = [
   { id: "frango-grelhado", name: "Frango grelhado", available: true },
   { id: "frango-empanado", name: "Frango empanado", available: true },
@@ -67,8 +77,6 @@ export const SIDES: MenuOption[] = [
   { id: "banana-frita", name: "Banana da terra frita", available: true },
 ];
 
-export const REQUIRED_SIDES = 4;
-
 export const DELIVERY_FEE_CENTS = STORE.deliveryFeeCents;
 
 export function formatPrice(cents: number): string {
@@ -78,8 +86,11 @@ export function formatPrice(cents: number): string {
   });
 }
 
-export function getMealType(id: string): MealType | undefined {
-  return MEAL_TYPES.find((m) => m.id === id);
+export function getFallbackMealType(id: string) {
+  const now = new Date().toISOString();
+  const found = FALLBACK_MEAL_TYPES.find((m) => m.id === id || m.slug === id);
+  if (!found) return undefined;
+  return { ...found, created_at: now, updated_at: now } as MealTypeItem;
 }
 
 export function getProtein(id: string): MenuOption | undefined {
@@ -90,13 +101,11 @@ export function getSide(id: string): MenuOption | undefined {
   return SIDES.find((s) => s.id === id);
 }
 
-export function calculateTotal(
-  mealTypeId: string,
+export function calculateTotalFromMeal(
+  priceCents: number,
   deliveryType: "pickup" | "delivery",
 ): number {
-  const meal = getMealType(mealTypeId);
-  if (!meal) return 0;
   const delivery =
     deliveryType === "delivery" ? DELIVERY_FEE_CENTS : 0;
-  return meal.priceCents + delivery;
+  return priceCents + delivery;
 }

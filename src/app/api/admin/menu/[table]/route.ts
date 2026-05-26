@@ -43,12 +43,11 @@ export async function POST(
   const table = asTable(raw);
   if (!table) return NextResponse.json({ error: "Tabela inválida." }, { status: 400 });
 
-  const body = (await request.json()) as { name?: string; fit?: boolean; position?: number };
+  const body = (await request.json()) as { name?: string; position?: number };
   if (!body.name?.trim()) return NextResponse.json({ error: "Informe o nome." }, { status: 400 });
 
   const result = await adminCreateMenuItem(table, {
     name: body.name,
-    fit: body.fit,
     position: body.position,
   });
   if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });

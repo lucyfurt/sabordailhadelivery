@@ -23,6 +23,7 @@ export interface Order {
   address: string | null;
   meal_type_id: string;
   meal_type_name: string;
+  proteins: MenuItemRef[];
   protein_id: string;
   protein_name: string;
   sides: MenuItemRef[];
@@ -40,7 +41,7 @@ export interface CreateOrderInput {
   delivery_type: DeliveryType;
   address?: string;
   meal_type_id: string;
-  protein_id: string;
+  protein_ids: string[];
   side_ids: string[];
   notes?: string;
 }
@@ -54,3 +55,10 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   cancelled: "Cancelado",
   expired: "Expirado",
 };
+
+export function orderProteinLabel(order: Order): string {
+  if (order.proteins.length > 0) {
+    return order.proteins.map((p) => p.name).join(", ");
+  }
+  return order.protein_name;
+}

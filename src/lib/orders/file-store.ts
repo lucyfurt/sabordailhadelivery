@@ -2,11 +2,10 @@ import { promises as fs } from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
 import {
-  calculateTotal,
-  getMealType,
+  calculateTotalFromMeal,
+  getFallbackMealType,
   getProtein,
   getSide,
-  REQUIRED_SIDES,
 } from "@/lib/menu";
 import { formatOrderNumber, todayKey } from "@/lib/order-number";
 import { normalizePhone } from "@/lib/phone";
@@ -56,21 +55,41 @@ async function nextSequence(): Promise<number> {
 }
 
 function validateCreateInput(input: CreateOrderInput): string | null {
-  const meal = getMealType(input.meal_type_id);
-  const protein = getProtein(input.protein_id);
+  const meal = getFallbackMealType(input.meal_type_id);
   if (!meal) return "Tipo de marmita inválido.";
-  if (!protein?.available) return "Proteína indisponível.";
-  if (input.side_ids.length !== REQUIRED_SIDES) {
-    return `Selecione exatamente ${REQUIRED_SIDES} acompanhamentos.`;
+  if (!meal.available) return "Tipo de marmita indisponível.";
+
+  if (
+    meal.required_proteins > 0 &&
+    input.protein_ids.length !== meal.required_proteins
+  ) {
+    return `Selecione exatamente ${meal.required_proteins} proteína(s).`;
   }
-  const unique = new Set(input.side_ids);
-  if (unique.size !== REQUIRED_SIDES) {
-    return "Não repita o mesmo acompanhamento.";
+  if (meal.required_proteins > 0) {
+    const uniqueP = new Set(input.protein_ids);
+    if (uniqueP.size !== meal.required_proteins) {
+      return "Não repita a mesma proteína.";
+    }
+    for (const id of input.protein_ids) {
+      const protein = getProtein(id);
+      if (!protein?.available) return "Proteína indisponível.";
+    }
   }
-  for (const id of input.side_ids) {
-    const side = getSide(id);
-    if (!side?.available) return `Acompanhamento indisponível: ${id}`;
+
+  if (meal.required_sides > 0 && input.side_ids.length !== meal.required_sides) {
+    return `Selecione exatamente ${meal.required_sides} acompanhamento(s).`;
   }
+  if (meal.required_sides > 0) {
+    const uniqueS = new Set(input.side_ids);
+    if (uniqueS.size !== meal.required_sides) {
+      return "Não repita o mesmo acompanhamento.";
+    }
+    for (const id of input.side_ids) {
+      const side = getSide(id);
+      if (!side?.available) return `Acompanhamento indisponível: ${id}`;
+    }
+  }
+
   if (input.delivery_type === "delivery" && !input.address?.trim()) {
     return "Informe o endereço para entrega.";
   }
@@ -87,12 +106,16 @@ export async function fileCreateOrder(
   const validation = validateCreateInput(input);
   if (validation) return { error: validation };
 
-  const meal = getMealType(input.meal_type_id)!;
-  const protein = getProtein(input.protein_id)!;
+  const meal = getFallbackMealType(input.meal_type_id)!;
+  const proteins = input.protein_ids.map((id) => {
+    const p = getProtein(id)!;
+    return { id: p.id, name: p.name };
+  });
   const sides = input.side_ids.map((id) => {
     const s = getSide(id)!;
     return { id: s.id, name: s.name };
   });
+  const first = proteins[0];
 
   const now = new Date();
   const sequence = await nextSequence();
@@ -105,11 +128,12 @@ export async function fileCreateOrder(
     address: input.address?.trim() ?? null,
     meal_type_id: meal.id,
     meal_type_name: meal.name,
-    protein_id: protein.id,
-    protein_name: protein.name,
+    proteins,
+    protein_id: first?.id ?? "",
+    protein_name: first?.name ?? "",
     sides,
     notes: input.notes?.trim() ?? null,
-    total_cents: calculateTotal(meal.id, input.delivery_type),
+    total_cents: calculateTotalFromMeal(meal.price_cents, input.delivery_type),
     status: "awaiting_payment",
     created_at: now.toISOString(),
     paid_at: null,

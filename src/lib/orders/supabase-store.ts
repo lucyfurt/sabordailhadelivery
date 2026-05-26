@@ -1,30 +1,42 @@
-import { createClient } from "@supabase/supabase-js";
 import {
-  calculateTotal,
-  getMealType,
-  REQUIRED_SIDES,
+  calculateTotalFromMeal,
 } from "@/lib/menu";
+import { getMealTypeById } from "@/lib/menu-store";
+import { mapOrderRow } from "@/lib/order-items";
 import { formatOrderNumber, todayKey } from "@/lib/order-number";
 import { normalizePhone } from "@/lib/phone";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import type { CreateOrderInput, Order, OrderStatus } from "@/types/order";
 
-function getAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  return createClient(url, key, { auth: { persistSession: false } });
-}
+function validateBasics(
+  input: CreateOrderInput,
+  meal: NonNullable<Awaited<ReturnType<typeof getMealTypeById>>>,
+): string | null {
+  if (!meal.available) return "Tipo de marmita indisponível.";
 
-function validateBasics(input: CreateOrderInput): string | null {
-  const meal = getMealType(input.meal_type_id);
-  if (!meal) return "Tipo de marmita inválido.";
+  const reqP = meal.required_proteins;
+  const reqS = meal.required_sides;
 
-  if (input.side_ids.length !== REQUIRED_SIDES) {
-    return `Selecione exatamente ${REQUIRED_SIDES} acompanhamentos.`;
+  if (reqP > 0 && input.protein_ids.length !== reqP) {
+    return `Selecione exatamente ${reqP} proteína(s).`;
   }
-  const unique = new Set(input.side_ids);
-  if (unique.size !== REQUIRED_SIDES) {
-    return "Não repita o mesmo acompanhamento.";
+  if (reqP > 0) {
+    const uniqueP = new Set(input.protein_ids);
+    if (uniqueP.size !== reqP) {
+      return "Não repita a mesma proteína.";
+    }
   }
+
+  if (reqS > 0 && input.side_ids.length !== reqS) {
+    return `Selecione exatamente ${reqS} acompanhamento(s).`;
+  }
+  if (reqS > 0) {
+    const uniqueS = new Set(input.side_ids);
+    if (uniqueS.size !== reqS) {
+      return "Não repita o mesmo acompanhamento.";
+    }
+  }
+
   if (input.delivery_type === "delivery" && !input.address?.trim()) {
     return "Informe o endereço para entrega.";
   }
@@ -35,29 +47,7 @@ function validateBasics(input: CreateOrderInput): string | null {
   return null;
 }
 
-function mapRow(row: Record<string, unknown>): Order {
-  return {
-    id: row.id as string,
-    order_number: row.order_number as string,
-    customer_name: row.customer_name as string,
-    customer_phone: row.customer_phone as string,
-    delivery_type: row.delivery_type as Order["delivery_type"],
-    address: (row.address as string | null) ?? null,
-    meal_type_id: row.meal_type_id as string,
-    meal_type_name: row.meal_type_name as string,
-    protein_id: row.protein_id as string,
-    protein_name: row.protein_name as string,
-    sides: row.sides as Order["sides"],
-    notes: (row.notes as string | null) ?? null,
-    total_cents: row.total_cents as number,
-    status: row.status as OrderStatus,
-    created_at: row.created_at as string,
-    paid_at: (row.paid_at as string | null) ?? null,
-    updated_at: row.updated_at as string,
-  };
-}
-
-async function nextSequence(supabase: ReturnType<typeof getAdminClient>) {
+async function nextSequence(supabase: ReturnType<typeof getSupabaseAdmin>) {
   const key = todayKey();
   const { data, error } = await supabase.rpc("increment_daily_counter", {
     p_date: key,
@@ -69,35 +59,50 @@ async function nextSequence(supabase: ReturnType<typeof getAdminClient>) {
 export async function supabaseCreateOrder(
   input: CreateOrderInput,
 ): Promise<{ order?: Order; error?: string }> {
-  const validation = validateBasics(input);
+  const meal = await getMealTypeById(input.meal_type_id);
+  if (!meal) return { error: "Tipo de marmita inválido." };
+
+  const validation = validateBasics(input, meal);
   if (validation) return { error: validation };
 
-  const supabase = getAdminClient();
-  const meal = getMealType(input.meal_type_id)!;
+  const supabase = getSupabaseAdmin();
 
-  // Cardápio vem do Supabase (ids UUID)
-  const proteinRes = await supabase
-    .from("proteins")
-    .select("id,name,available")
-    .eq("id", input.protein_id)
-    .maybeSingle();
-  if (proteinRes.error) return { error: proteinRes.error.message };
-  if (!proteinRes.data || !proteinRes.data.available) {
-    return { error: "Proteína indisponível." };
+  let proteinRows: { id: string; name: string; available: boolean }[] = [];
+  if (meal.required_proteins > 0) {
+    const proteinRes = await supabase
+      .from("proteins")
+      .select("id,name,available")
+      .in("id", input.protein_ids);
+    if (proteinRes.error) return { error: proteinRes.error.message };
+    proteinRows = proteinRes.data ?? [];
+    if (proteinRows.length !== meal.required_proteins) {
+      return { error: "Proteína inválida." };
+    }
+    if (proteinRows.some((p) => !p.available)) {
+      return { error: "Uma ou mais proteínas estão indisponíveis." };
+    }
   }
 
-  const sidesRes = await supabase
-    .from("sides")
-    .select("id,name,available")
-    .in("id", input.side_ids);
-  if (sidesRes.error) return { error: sidesRes.error.message };
-  const sideRows = sidesRes.data ?? [];
-  if (sideRows.length !== REQUIRED_SIDES) {
-    return { error: "Acompanhamento inválido." };
+  let sideRows: { id: string; name: string; available: boolean }[] = [];
+  if (meal.required_sides > 0) {
+    const sidesRes = await supabase
+      .from("sides")
+      .select("id,name,available")
+      .in("id", input.side_ids);
+    if (sidesRes.error) return { error: sidesRes.error.message };
+    sideRows = sidesRes.data ?? [];
+    if (sideRows.length !== meal.required_sides) {
+      return { error: "Acompanhamento inválido." };
+    }
+    if (sideRows.some((s) => !s.available)) {
+      return { error: "Um ou mais acompanhamentos estão indisponíveis." };
+    }
   }
-  if (sideRows.some((s) => !s.available)) {
-    return { error: "Um ou mais acompanhamentos estão indisponíveis." };
-  }
+
+  const proteins = input.protein_ids.map((id) => {
+    const row = proteinRows.find((p) => p.id === id);
+    return { id, name: row?.name ?? id };
+  });
   const sides = input.side_ids.map((id) => {
     const row = sideRows.find((s) => s.id === id);
     return { id, name: row?.name ?? id };
@@ -116,6 +121,7 @@ export async function supabaseCreateOrder(
   }
 
   const orderNumber = formatOrderNumber(now, sequence);
+  const firstProtein = proteins[0];
   const row = {
     order_number: orderNumber,
     customer_name: input.customer_name.trim(),
@@ -124,11 +130,12 @@ export async function supabaseCreateOrder(
     address: input.address?.trim() ?? null,
     meal_type_id: meal.id,
     meal_type_name: meal.name,
-    protein_id: proteinRes.data.id,
-    protein_name: proteinRes.data.name,
+    proteins,
+    protein_id: firstProtein?.id ?? "",
+    protein_name: firstProtein?.name ?? "",
     sides,
     notes: input.notes?.trim() ?? null,
-    total_cents: calculateTotal(meal.id, input.delivery_type),
+    total_cents: calculateTotalFromMeal(meal.price_cents, input.delivery_type),
     status: "awaiting_payment" as const,
   };
 
@@ -139,11 +146,11 @@ export async function supabaseCreateOrder(
     .single();
 
   if (error) return { error: error.message };
-  return { order: mapRow(data) };
+  return { order: mapOrderRow(data) };
 }
 
 export async function supabaseListOrders(date?: string): Promise<Order[]> {
-  const supabase = getAdminClient();
+  const supabase = getSupabaseAdmin();
   let query = supabase
     .from("orders")
     .select("*")
@@ -157,13 +164,13 @@ export async function supabaseListOrders(date?: string): Promise<Order[]> {
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return (data ?? []).map(mapRow);
+  return (data ?? []).map(mapOrderRow);
 }
 
 export async function supabaseGetOrderByNumber(
   orderNumber: string,
 ): Promise<Order | null> {
-  const supabase = getAdminClient();
+  const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("orders")
     .select("*")
@@ -171,18 +178,15 @@ export async function supabaseGetOrderByNumber(
     .maybeSingle();
 
   if (error) throw new Error(error.message);
-  return data ? mapRow(data) : null;
+  return data ? mapOrderRow(data) : null;
 }
 
 export async function supabaseUpdateOrderStatus(
   id: string,
   status: OrderStatus,
 ): Promise<{ order?: Order; error?: string; notFound?: boolean }> {
-  const supabase = getAdminClient();
+  const supabase = getSupabaseAdmin();
 
-  // 1) Primeiro, verifica se o pedido existe.
-  // Isso ajuda a diferenciar "não encontrado" de "RLS bloqueando update"
-  // (no PostgREST ambos podem virar 0 linhas afetadas).
   const exists = await supabase
     .from("orders")
     .select("id")
@@ -213,14 +217,13 @@ export async function supabaseUpdateOrderStatus(
 
   if (error) {
     const message = error.message ?? "Erro ao atualizar pedido.";
-    // PostgREST: PGRST116 costuma aparecer quando .single() não encontra linha
     if ((error as unknown as { code?: string }).code === "PGRST116") {
       return {
         error:
-          "Sem permissão para atualizar (RLS). Verifique as policies e se a Vercel está usando SUPABASE_SERVICE_ROLE_KEY.",
+          "Sem permissão para atualizar (RLS). Verifique SUPABASE_SERVICE_ROLE_KEY.",
       };
     }
     return { error: message };
   }
-  return { order: mapRow(data) };
+  return { order: mapOrderRow(data) };
 }

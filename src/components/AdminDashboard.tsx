@@ -12,7 +12,9 @@ import { formatPhoneDisplay } from "@/lib/phone";
 import { orderWhatsAppUrl } from "@/lib/whatsapp";
 import type { Order, OrderStatus } from "@/types/order";
 import { ORDER_STATUS_LABELS } from "@/types/order";
+import { AdminMealTypesManager } from "@/components/AdminMealTypesManager";
 import { AdminMenuManager } from "@/components/AdminMenuManager";
+import { orderProteinLabel } from "@/types/order";
 
 const STATUS_OPTIONS: OrderStatus[] = [
   "awaiting_payment",
@@ -32,9 +34,9 @@ export function AdminDashboard() {
   const [date, setDate] = useState(todayIso());
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"pedidos" | "relatorios" | "cardapio">(
-    "pedidos",
-  );
+  const [tab, setTab] = useState<
+    "pedidos" | "relatorios" | "cardapio" | "marmitas"
+  >("pedidos");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -100,7 +102,8 @@ export function AdminDashboard() {
       </div>
 
       <div className="flex gap-2">
-        {(["pedidos", "relatorios", "cardapio"] as const).map((t) => (
+        {(["pedidos", "marmitas", "cardapio", "relatorios"] as const).map(
+          (t) => (
           <button
             key={t}
             type="button"
@@ -115,11 +118,15 @@ export function AdminDashboard() {
               ? "Pedidos"
               : t === "relatorios"
                 ? "Relatórios"
-                : "Cardápio"}
+                : t === "marmitas"
+                  ? "Tipos marmita"
+                  : "Itens"}
           </button>
-        ))}
+        ),
+        )}
       </div>
 
+      {tab === "marmitas" && <AdminMealTypesManager />}
       {tab === "cardapio" && <AdminMenuManager />}
 
       {tab === "relatorios" && (
@@ -200,7 +207,7 @@ export function AdminDashboard() {
                 <p className="font-bold">{formatPrice(order.total_cents)}</p>
               </div>
               <p className="mt-2 text-sm">
-                {order.meal_type_name} · {order.protein_name}
+                {order.meal_type_name} · {orderProteinLabel(order)}
               </p>
               <p className="text-sm text-gray-600">
                 {order.sides.map((s) => s.name).join(", ")}

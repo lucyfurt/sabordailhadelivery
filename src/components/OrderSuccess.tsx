@@ -4,7 +4,7 @@ import Link from "next/link";
 import { formatPrice } from "@/lib/menu";
 import { orderWhatsAppUrl } from "@/lib/whatsapp";
 import type { Order } from "@/types/order";
-import { ORDER_STATUS_LABELS } from "@/types/order";
+import { ORDER_STATUS_LABELS, orderProteinLabel } from "@/types/order";
 
 export function OrderSuccess({
   order,
@@ -41,7 +41,7 @@ export function OrderSuccess({
           <strong>Marmita:</strong> {order.meal_type_name}
         </p>
         <p>
-          <strong>Proteína:</strong> {order.protein_name}
+          <strong>Proteína(s):</strong> {orderProteinLabel(order)}
         </p>
         <p>
           <strong>Acompanhamentos:</strong>{" "}

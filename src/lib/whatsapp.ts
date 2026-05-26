@@ -1,5 +1,6 @@
 import { formatPrice } from "@/lib/menu";
 import type { Order } from "@/types/order";
+import { orderProteinLabel } from "@/types/order";
 
 const WHATSAPP_NUMBER =
   process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "5598992019061";
@@ -15,7 +16,7 @@ export function buildWhatsAppMessage(order: Order): string {
     `Olá! Quero confirmar meu pedido *#${order.order_number}*`,
     ``,
     `*${order.meal_type_name}*`,
-    `Proteína: ${order.protein_name}`,
+    `Proteína(s): ${orderProteinLabel(order)}`,
     `Acompanhamentos: ${sides}`,
     order.notes ? `Obs: ${order.notes}` : null,
     delivery,
