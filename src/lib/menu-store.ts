@@ -1,5 +1,6 @@
 import { isSupabaseEnabled } from "@/lib/config";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { PROTEINS, SIDES } from "@/lib/menu";
 import type { MenuItem } from "@/types/menu";
 
 function slugify(input: string): string {
@@ -25,7 +26,21 @@ function mapRow(row: Record<string, unknown>): MenuItem {
 }
 
 async function list(table: "proteins" | "sides"): Promise<MenuItem[]> {
-  if (!isSupabaseEnabled()) return [];
+  if (!isSupabaseEnabled()) {
+    // Fallback local (sem Supabase): usa o cardápio estático
+    const items = table === "proteins" ? PROTEINS : SIDES;
+    const now = new Date().toISOString();
+    return items.map((it, idx) => ({
+      id: it.id,
+      slug: it.id,
+      name: it.name,
+      available: it.available,
+      fit: Boolean(it.fit),
+      position: idx,
+      created_at: now,
+      updated_at: now,
+    }));
+  }
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from(table)

@@ -2,8 +2,6 @@ import { createClient } from "@supabase/supabase-js";
 import {
   calculateTotal,
   getMealType,
-  getProtein,
-  getSide,
   REQUIRED_SIDES,
 } from "@/lib/menu";
 import { formatOrderNumber, todayKey } from "@/lib/order-number";
@@ -16,21 +14,16 @@ function getAdminClient() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-function validateCreateInput(input: CreateOrderInput): string | null {
+function validateBasics(input: CreateOrderInput): string | null {
   const meal = getMealType(input.meal_type_id);
-  const protein = getProtein(input.protein_id);
   if (!meal) return "Tipo de marmita inválido.";
-  if (!protein?.available) return "Proteína indisponível.";
+
   if (input.side_ids.length !== REQUIRED_SIDES) {
     return `Selecione exatamente ${REQUIRED_SIDES} acompanhamentos.`;
   }
   const unique = new Set(input.side_ids);
   if (unique.size !== REQUIRED_SIDES) {
     return "Não repita o mesmo acompanhamento.";
-  }
-  for (const id of input.side_ids) {
-    const side = getSide(id);
-    if (!side?.available) return `Acompanhamento indisponível.`;
   }
   if (input.delivery_type === "delivery" && !input.address?.trim()) {
     return "Informe o endereço para entrega.";
@@ -76,15 +69,38 @@ async function nextSequence(supabase: ReturnType<typeof getAdminClient>) {
 export async function supabaseCreateOrder(
   input: CreateOrderInput,
 ): Promise<{ order?: Order; error?: string }> {
-  const validation = validateCreateInput(input);
+  const validation = validateBasics(input);
   if (validation) return { error: validation };
 
   const supabase = getAdminClient();
   const meal = getMealType(input.meal_type_id)!;
-  const protein = getProtein(input.protein_id)!;
+
+  // Cardápio vem do Supabase (ids UUID)
+  const proteinRes = await supabase
+    .from("proteins")
+    .select("id,name,available")
+    .eq("id", input.protein_id)
+    .maybeSingle();
+  if (proteinRes.error) return { error: proteinRes.error.message };
+  if (!proteinRes.data || !proteinRes.data.available) {
+    return { error: "Proteína indisponível." };
+  }
+
+  const sidesRes = await supabase
+    .from("sides")
+    .select("id,name,available")
+    .in("id", input.side_ids);
+  if (sidesRes.error) return { error: sidesRes.error.message };
+  const sideRows = sidesRes.data ?? [];
+  if (sideRows.length !== REQUIRED_SIDES) {
+    return { error: "Acompanhamento inválido." };
+  }
+  if (sideRows.some((s) => !s.available)) {
+    return { error: "Um ou mais acompanhamentos estão indisponíveis." };
+  }
   const sides = input.side_ids.map((id) => {
-    const s = getSide(id)!;
-    return { id: s.id, name: s.name };
+    const row = sideRows.find((s) => s.id === id);
+    return { id, name: row?.name ?? id };
   });
 
   const now = new Date();
@@ -108,8 +124,8 @@ export async function supabaseCreateOrder(
     address: input.address?.trim() ?? null,
     meal_type_id: meal.id,
     meal_type_name: meal.name,
-    protein_id: protein.id,
-    protein_name: protein.name,
+    protein_id: proteinRes.data.id,
+    protein_name: proteinRes.data.name,
     sides,
     notes: input.notes?.trim() ?? null,
     total_cents: calculateTotal(meal.id, input.delivery_type),
