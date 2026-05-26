@@ -161,8 +161,25 @@ export async function supabaseGetOrderByNumber(
 export async function supabaseUpdateOrderStatus(
   id: string,
   status: OrderStatus,
-): Promise<Order | null> {
+): Promise<{ order?: Order; error?: string; notFound?: boolean }> {
   const supabase = getAdminClient();
+
+  // 1) Primeiro, verifica se o pedido existe.
+  // Isso ajuda a diferenciar "não encontrado" de "RLS bloqueando update"
+  // (no PostgREST ambos podem virar 0 linhas afetadas).
+  const exists = await supabase
+    .from("orders")
+    .select("id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (exists.error) {
+    return { error: exists.error.message ?? "Erro ao validar pedido." };
+  }
+  if (!exists.data) {
+    return { notFound: true, error: "Pedido não encontrado." };
+  }
+
   const patch: Record<string, unknown> = {
     status,
     updated_at: new Date().toISOString(),
@@ -178,6 +195,16 @@ export async function supabaseUpdateOrderStatus(
     .select()
     .single();
 
-  if (error) return null;
-  return mapRow(data);
+  if (error) {
+    const message = error.message ?? "Erro ao atualizar pedido.";
+    // PostgREST: PGRST116 costuma aparecer quando .single() não encontra linha
+    if ((error as unknown as { code?: string }).code === "PGRST116") {
+      return {
+        error:
+          "Sem permissão para atualizar (RLS). Verifique as policies e se a Vercel está usando SUPABASE_SERVICE_ROLE_KEY.",
+      };
+    }
+    return { error: message };
+  }
+  return { order: mapRow(data) };
 }

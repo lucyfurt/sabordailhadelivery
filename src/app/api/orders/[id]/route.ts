@@ -29,10 +29,16 @@ export async function PATCH(
     return NextResponse.json({ error: "Status inválido." }, { status: 400 });
   }
 
-  const order = await updateOrderStatus(id, body.status);
-  if (!order) {
-    return NextResponse.json({ error: "Pedido não encontrado." }, { status: 404 });
+  const result = await updateOrderStatus(id, body.status);
+  if (result.notFound) {
+    return NextResponse.json({ error: result.error ?? "Pedido não encontrado." }, { status: 404 });
+  }
+  if (result.error || !result.order) {
+    return NextResponse.json(
+      { error: result.error ?? "Erro ao atualizar pedido." },
+      { status: 500 },
+    );
   }
 
-  return NextResponse.json({ order });
+  return NextResponse.json({ order: result.order });
 }

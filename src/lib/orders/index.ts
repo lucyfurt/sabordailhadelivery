@@ -37,7 +37,9 @@ export async function getOrderByNumber(
 export async function updateOrderStatus(
   id: string,
   status: OrderStatus,
-): Promise<Order | null> {
+): Promise<{ order?: Order; error?: string; notFound?: boolean }> {
   if (isSupabaseEnabled()) return supabaseUpdateOrderStatus(id, status);
-  return fileUpdateOrderStatus(id, status);
+  const order = await fileUpdateOrderStatus(id, status);
+  if (!order) return { notFound: true, error: "Pedido não encontrado." };
+  return { order };
 }
