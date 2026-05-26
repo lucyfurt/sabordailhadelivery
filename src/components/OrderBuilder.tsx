@@ -8,7 +8,6 @@ import {
   formatPrice,
   MEAL_TYPES,
   REQUIRED_SIDES,
-  sortForMealType,
 } from "@/lib/menu";
 import type { DeliveryType } from "@/types/order";
 import type { MenuItem } from "@/types/menu";
@@ -157,10 +156,10 @@ export function OrderBuilder() {
         <section className="space-y-4">
           <p className="text-sm text-gray-600">Escolha 1 proteína</p>
           <div className="grid gap-2 sm:grid-cols-2">
-            {sortForMealType(
-              proteins.filter((p) => p.available),
-              mealTypeId,
-            ).map((p) => (
+            {proteins
+              .filter((p) => p.available)
+              .sort((a, b) => (a.position - b.position) || a.name.localeCompare(b.name, "pt-BR"))
+              .map((p) => (
               <button
                 key={p.id}
                 type="button"
@@ -202,10 +201,10 @@ export function OrderBuilder() {
             {sideIds.length}/{REQUIRED_SIDES})
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
-            {sortForMealType(
-              sides.filter((s) => s.available),
-              mealTypeId,
-            ).map((s) => {
+            {sides
+              .filter((s) => s.available)
+              .sort((a, b) => (a.position - b.position) || a.name.localeCompare(b.name, "pt-BR"))
+              .map((s) => {
               const selected = sideIds.includes(s.id);
               const disabled =
                 !selected && sideIds.length >= REQUIRED_SIDES;

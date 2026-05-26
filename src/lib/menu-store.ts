@@ -35,7 +35,7 @@ async function list(table: "proteins" | "sides"): Promise<MenuItem[]> {
       slug: it.id,
       name: it.name,
       available: it.available,
-      fit: Boolean(it.fit),
+      fit: false,
       position: idx,
       created_at: now,
       updated_at: now,

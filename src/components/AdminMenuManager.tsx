@@ -16,7 +16,6 @@ export function AdminMenuManager() {
   const [error, setError] = useState("");
 
   const [newName, setNewName] = useState("");
-  const [newFit, setNewFit] = useState(false);
 
   const sorted = useMemo(() => {
     return [...items].sort((a, b) => (a.position - b.position) || a.name.localeCompare(b.name, "pt-BR"));
@@ -47,7 +46,7 @@ export function AdminMenuManager() {
     const res = await fetch(`/api/admin/menu/${tab}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName, fit: newFit }),
+      body: JSON.stringify({ name: newName }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -55,7 +54,6 @@ export function AdminMenuManager() {
       return;
     }
     setNewName("");
-    setNewFit(false);
     await load();
   }
 
@@ -117,15 +115,11 @@ export function AdminMenuManager() {
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
         />
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={newFit} onChange={(e) => setNewFit(e.target.checked)} />
-          Opção fit
-        </label>
         <button
           type="button"
           onClick={create}
           disabled={!newName.trim()}
-          className="rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+          className="md:col-span-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
         >
           Adicionar
         </button>
@@ -157,14 +151,6 @@ export function AdminMenuManager() {
                   onBlur={() => patch(it.id, { name: it.name })}
                 />
                 <div className="mt-1 flex gap-3 text-xs text-gray-600">
-                  <label className="flex items-center gap-1">
-                    <input
-                      type="checkbox"
-                      checked={it.fit}
-                      onChange={(e) => patch(it.id, { fit: e.target.checked })}
-                    />
-                    fit
-                  </label>
                   <span className="text-gray-400">slug: {it.slug}</span>
                 </div>
               </div>

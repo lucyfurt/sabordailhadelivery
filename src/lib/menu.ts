@@ -12,8 +12,6 @@ export interface MenuOption {
   id: string;
   name: string;
   available: boolean;
-  /** Sugestão para marmita fit */
-  fit?: boolean;
 }
 
 export const MEAL_TYPES: MealType[] = [
@@ -44,14 +42,14 @@ export const MEAL_TYPES: MealType[] = [
 
 /** Proteínas do dia — marque `available: false` quando acabar */
 export const PROTEINS: MenuOption[] = [
-  { id: "frango-grelhado", name: "Frango grelhado", available: true, fit: true },
+  { id: "frango-grelhado", name: "Frango grelhado", available: true },
   { id: "frango-empanado", name: "Frango empanado", available: true },
   { id: "carne-moida", name: "Carne moída", available: true },
   { id: "bife-acebolado", name: "Bife acebolado", available: true },
   { id: "peixe-frito", name: "Peixe frito", available: true },
   { id: "peixe-ensopado", name: "Peixe ensopado", available: true },
   { id: "charque", name: "Charque", available: true },
-  { id: "ovo", name: "Ovo frito", available: true, fit: true },
+  { id: "ovo", name: "Ovo frito", available: true },
 ];
 
 export const SIDES: MenuOption[] = [
@@ -60,11 +58,11 @@ export const SIDES: MenuOption[] = [
   { id: "feijao-tropeiro", name: "Feijão tropeiro", available: true },
   { id: "macarrao", name: "Macarrão", available: true },
   { id: "pure-batata", name: "Purê de batata", available: true },
-  { id: "salada", name: "Salada verde", available: true, fit: true },
-  { id: "vinagrete", name: "Vinagrete", available: true, fit: true },
+  { id: "salada", name: "Salada verde", available: true },
+  { id: "vinagrete", name: "Vinagrete", available: true },
   { id: "farofa", name: "Farofa", available: true },
-  { id: "legumes", name: "Legumes refogados", available: true, fit: true },
-  { id: "arroz-integral", name: "Arroz integral", available: true, fit: true },
+  { id: "legumes", name: "Legumes refogados", available: true },
+  { id: "arroz-integral", name: "Arroz integral", available: true },
   { id: "mandioca", name: "Mandioca cozida", available: true },
   { id: "banana-frita", name: "Banana da terra frita", available: true },
 ];
@@ -101,17 +99,4 @@ export function calculateTotal(
   const delivery =
     deliveryType === "delivery" ? DELIVERY_FEE_CENTS : 0;
   return meal.priceCents + delivery;
-}
-
-/** Destaca opções fit quando a marmita fit está selecionada */
-export function sortForMealType<T extends MenuOption>(
-  items: T[],
-  mealTypeId: string,
-): T[] {
-  if (mealTypeId !== "fit") return items;
-  return [...items].sort((a, b) => {
-    if (a.fit && !b.fit) return -1;
-    if (!a.fit && b.fit) return 1;
-    return a.name.localeCompare(b.name, "pt-BR");
-  });
 }
