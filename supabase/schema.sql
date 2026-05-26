@@ -44,6 +44,53 @@ begin
 end;
 $$;
 
--- RLS: desabilitado; acesso via service role no servidor Next.js
+-- RLS
+-- MVP:
+-- - Clientes (pelo servidor Next.js) precisam conseguir INSERT de pedidos
+-- - Clientes consultam APENAS o pedido por número (telefone não é exposto na API)
+-- - Apenas o admin (service_role) pode UPDATE de status
 alter table orders enable row level security;
 alter table daily_counters enable row level security;
+
+-- Permite que pedidos sejam criados (INSERT) e consultados públicos (SELECT) via role anon
+-- (isso evita o erro "new row violates row-level security policy" no INSERT).
+create policy "orders_public_insert" on orders
+for insert
+to anon, authenticated
+with check (true);
+
+create policy "orders_service_role_insert" on orders
+for insert
+to service_role
+with check (true);
+
+create policy "orders_public_select" on orders
+for select
+to anon, authenticated
+using (true);
+
+create policy "orders_service_role_select" on orders
+for select
+to service_role
+using (true);
+
+-- Admin atualiza status do pedido com service role
+create policy "orders_service_role_update" on orders
+for update
+to service_role
+using (true)
+with check (true);
+
+-- O contador diário é interno ao sistema; liberar INSERT/UPDATE para anon e service_role
+-- simplifica o uso do RPC increment_daily_counter.
+create policy "daily_counters_anon_rw" on daily_counters
+for all
+to anon, authenticated
+using (true)
+with check (true);
+
+create policy "daily_counters_service_role_rw" on daily_counters
+for all
+to service_role
+using (true)
+with check (true);
