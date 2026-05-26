@@ -1,0 +1,268 @@
+
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body{
+      background:#fff7ed;
+      color:#222;
+    }
+
+    .hero{
+      min-height:100vh;
+      background:linear-gradient(135deg,#f97316,#dc2626);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:40px;
+      color:white;
+    }
+
+    .container{
+      max-width:1200px;
+      width:100%;
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:40px;
+      align-items:center;
+    }
+
+    .tag{
+      background:rgba(255,255,255,0.2);
+      padding:10px 20px;
+      border-radius:30px;
+      display:inline-block;
+      font-weight:bold;
+      margin-bottom:20px;
+    }
+
+    h1{
+      font-size:65px;
+      line-height:1.1;
+      margin-bottom:20px;
+    }
+
+    .hero p{
+      font-size:22px;
+      line-height:1.6;
+      margin-bottom:30px;
+      color:#ffe7d1;
+    }
+
+    .buttons{
+      display:flex;
+      gap:20px;
+      flex-wrap:wrap;
+    }
+
+    .btn{
+      padding:18px 35px;
+      border-radius:18px;
+      text-decoration:none;
+      font-weight:bold;
+      transition:0.3s;
+      display:inline-block;
+    }
+
+    .btn-whats{
+      background:white;
+      color:#f97316;
+    }
+
+    .btn-whats:hover{
+      transform:scale(1.05);
+    }
+
+    .btn-insta{
+      border:2px solid white;
+      color:white;
+    }
+
+    .btn-insta:hover{
+      background:white;
+      color:#f97316;
+    }
+
+    .hero img{
+      width:100%;
+      border-radius:30px;
+      box-shadow:0 15px 40px rgba(0,0,0,0.3);
+    }
+
+    .menu{
+      padding:80px 40px;
+      max-width:1200px;
+      margin:auto;
+    }
+
+    .title{
+      text-align:center;
+      margin-bottom:50px;
+    }
+
+    .title h2{
+      font-size:50px;
+      color:#ea580c;
+      margin-bottom:10px;
+    }
+
+    .cards{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+      gap:30px;
+    }
+
+    .card{
+      background:white;
+      padding:30px;
+      border-radius:30px;
+      box-shadow:0 10px 25px rgba(0,0,0,0.08);
+      transition:0.3s;
+    }
+
+    .card:hover{
+      transform:translateY(-8px);
+    }
+
+    .emoji{
+      font-size:55px;
+      margin-bottom:15px;
+    }
+
+    .card h3{
+      font-size:28px;
+      margin-bottom:15px;
+    }
+
+    .card p{
+      color:#666;
+      line-height:1.6;
+      margin-bottom:25px;
+    }
+
+    .price{
+      font-size:35px;
+      color:#ea580c;
+      font-weight:bold;
+      margin-bottom:20px;
+    }
+
+    .card button{
+      width:100%;
+      padding:15px;
+      border:none;
+      background:#f97316;
+      color:white;
+      border-radius:15px;
+      font-size:16px;
+      font-weight:bold;
+      cursor:pointer;
+      transition:0.3s;
+    }
+
+    .card button:hover{
+      background:#ea580c;
+    }
+
+    .benefits{
+      background:#18181b;
+      color:white;
+      padding:80px 40px;
+    }
+
+    .benefit-grid{
+      max-width:1200px;
+      margin:auto;
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+      gap:30px;
+    }
+
+    .benefit{
+      background:#27272a;
+      padding:40px;
+      border-radius:30px;
+      text-align:center;
+    }
+
+    .benefit span{
+      font-size:55px;
+      display:block;
+      margin-bottom:20px;
+    }
+
+    .cta{
+      padding:100px 40px;
+      text-align:center;
+      background:white;
+    }
+
+    .cta h2{
+      font-size:55px;
+      color:#ea580c;
+      margin-bottom:20px;
+    }
+
+    .cta p{
+      font-size:22px;
+      color:#666;
+      margin-bottom:40px;
+    }
+
+    .cta a{
+      display:inline-block;
+      background:#22c55e;
+      color:white;
+      padding:22px 45px;
+      border-radius:25px;
+      text-decoration:none;
+      font-size:22px;
+      font-weight:bold;
+      transition:0.3s;
+    }
+
+    .cta a:hover{
+      transform:scale(1.05);
+      background:#16a34a;
+    }
+
+    footer{
+      background:#ea580c;
+      color:white;
+      text-align:center;
+      padding:40px;
+    }
+
+    footer h3{
+      font-size:35px;
+      margin-bottom:10px;
+    }
+
+    @media(max-width:900px){
+
+      .container{
+        grid-template-columns:1fr;
+      }
+
+      h1{
+        font-size:45px;
+      }
+
+      .hero{
+        text-align:center;
+      }
+
+      .buttons{
+        justify-content:center;
+      }
+
+      .title h2,
+      .cta h2{
+        font-size:38px;
+      }
+    }
+
+ 
