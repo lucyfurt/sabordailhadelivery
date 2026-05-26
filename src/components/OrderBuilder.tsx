@@ -1,18 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   calculateTotal,
   DELIVERY_FEE_CENTS,
   formatPrice,
   MEAL_TYPES,
-  PROTEINS,
   REQUIRED_SIDES,
-  SIDES,
   sortForMealType,
 } from "@/lib/menu";
 import type { DeliveryType } from "@/types/order";
+import type { MenuItem } from "@/types/menu";
 
 type Step = "meal" | "protein" | "sides" | "customer";
 
@@ -29,6 +28,28 @@ export function OrderBuilder() {
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const [proteins, setProteins] = useState<MenuItem[]>([]);
+  const [sides, setSides] = useState<MenuItem[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/menu");
+        const data = await res.json();
+        if (!res.ok) return;
+        if (cancelled) return;
+        setProteins(data.proteins ?? []);
+        setSides(data.sides ?? []);
+      } catch {
+        // fallback: se API falhar, fica vazio (admin ainda pode cadastrar)
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const total = useMemo(() => {
     if (!mealTypeId) return 0;
@@ -137,7 +158,7 @@ export function OrderBuilder() {
           <p className="text-sm text-gray-600">Escolha 1 proteína</p>
           <div className="grid gap-2 sm:grid-cols-2">
             {sortForMealType(
-              PROTEINS.filter((p) => p.available),
+              proteins.filter((p) => p.available),
               mealTypeId,
             ).map((p) => (
               <button
@@ -182,7 +203,7 @@ export function OrderBuilder() {
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
             {sortForMealType(
-              SIDES.filter((s) => s.available),
+              sides.filter((s) => s.available),
               mealTypeId,
             ).map((s) => {
               const selected = sideIds.includes(s.id);

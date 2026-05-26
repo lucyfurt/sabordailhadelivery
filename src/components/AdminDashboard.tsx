@@ -12,6 +12,7 @@ import { formatPhoneDisplay } from "@/lib/phone";
 import { orderWhatsAppUrl } from "@/lib/whatsapp";
 import type { Order, OrderStatus } from "@/types/order";
 import { ORDER_STATUS_LABELS } from "@/types/order";
+import { AdminMenuManager } from "@/components/AdminMenuManager";
 
 const STATUS_OPTIONS: OrderStatus[] = [
   "awaiting_payment",
@@ -31,7 +32,9 @@ export function AdminDashboard() {
   const [date, setDate] = useState(todayIso());
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"pedidos" | "relatorios">("pedidos");
+  const [tab, setTab] = useState<"pedidos" | "relatorios" | "cardapio">(
+    "pedidos",
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -97,7 +100,7 @@ export function AdminDashboard() {
       </div>
 
       <div className="flex gap-2">
-        {(["pedidos", "relatorios"] as const).map((t) => (
+        {(["pedidos", "relatorios", "cardapio"] as const).map((t) => (
           <button
             key={t}
             type="button"
@@ -108,10 +111,16 @@ export function AdminDashboard() {
                 : "bg-white text-gray-700"
             }`}
           >
-            {t === "pedidos" ? "Pedidos" : "Relatórios"}
+            {t === "pedidos"
+              ? "Pedidos"
+              : t === "relatorios"
+                ? "Relatórios"
+                : "Cardápio"}
           </button>
         ))}
       </div>
+
+      {tab === "cardapio" && <AdminMenuManager />}
 
       {tab === "relatorios" && (
         <div className="grid gap-4 md:grid-cols-2">

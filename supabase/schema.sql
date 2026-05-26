@@ -94,3 +94,55 @@ for all
 to service_role
 using (true)
 with check (true);
+
+-- =========================
+-- Cardápio editável (admin)
+-- =========================
+create table if not exists proteins (
+  id uuid primary key default gen_random_uuid(),
+  slug text unique not null,
+  name text not null,
+  available boolean not null default true,
+  fit boolean not null default false,
+  position integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists sides (
+  id uuid primary key default gen_random_uuid(),
+  slug text unique not null,
+  name text not null,
+  available boolean not null default true,
+  fit boolean not null default false,
+  position integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table proteins enable row level security;
+alter table sides enable row level security;
+
+-- Público pode ler (para montar pedido no site)
+create policy "proteins_public_select" on proteins
+for select
+to anon, authenticated
+using (true);
+
+create policy "sides_public_select" on sides
+for select
+to anon, authenticated
+using (true);
+
+-- Admin (service_role via Next.js server) pode gerenciar
+create policy "proteins_service_role_all" on proteins
+for all
+to service_role
+using (true)
+with check (true);
+
+create policy "sides_service_role_all" on sides
+for all
+to service_role
+using (true)
+with check (true);
