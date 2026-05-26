@@ -13,7 +13,9 @@ export function buildWhatsAppMessage(order: Order): string {
       : "Retirada no local";
 
   return [
-    `Olá! Quero confirmar meu pedido *#${order.order_number}*`,
+    `Olá! Atualização do meu pedido *#${order.order_number}*`,
+    ``,
+    `Status atual: ${order.status}`,
     ``,
     `*${order.meal_type_name}*`,
     `Proteína(s): ${orderProteinLabel(order)}`,
@@ -22,7 +24,7 @@ export function buildWhatsAppMessage(order: Order): string {
     delivery,
     `Total: *${formatPrice(order.total_cents)}*`,
     ``,
-    `Vou pagar via PIX. Pode me enviar a chave?`,
+    `Pode me confirmar o andamento por favor?`,
   ]
     .filter(Boolean)
     .join("\n");

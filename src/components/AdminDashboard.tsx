@@ -232,14 +232,21 @@ export function AdminDashboard() {
                     </option>
                   ))}
                 </select>
-                <a
-                  href={orderWhatsAppUrl(order)}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
+                  onClick={() => {
+                    const selectedStatus = order.status;
+                    const url = orderWhatsAppUrl({
+                      ...order,
+                      // garante que o texto do WhatsApp reflita o status atual
+                      status: selectedStatus,
+                    });
+                    window.open(url, "_blank", "noopener,noreferrer");
+                  }}
                   className="rounded-lg bg-green-600 px-3 py-1 text-sm font-medium text-white"
                 >
                   WhatsApp
-                </a>
+                </button>
               </div>
             </article>
           ))}
