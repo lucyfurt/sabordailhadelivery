@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { formatPrice } from "@/lib/menu";
-import type { MealTypeItem } from "@/types/menu";
+import type { MealTypeItem, MenuItem } from "@/types/menu";
 
 function centsFromReais(value: string): number {
   const n = Number(value.replace(",", "."));
@@ -16,6 +16,11 @@ function reaisFromCents(cents: number): string {
 
 export function AdminMealTypesManager() {
   const [items, setItems] = useState<MealTypeItem[]>([]);
+  const [proteins, setProteins] = useState<MenuItem[]>([]);
+  const [sides, setSides] = useState<MenuItem[]>([]);
+  const [links, setLinks] = useState<
+    Record<string, { protein_ids: string[]; side_ids: string[] }>
+  >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -45,6 +50,26 @@ export function AdminMealTypesManager() {
       setItems([]);
     } else {
       setItems(data.items ?? []);
+      const [pRes, sRes] = await Promise.all([
+        fetch("/api/admin/menu/proteins"),
+        fetch("/api/admin/menu/sides"),
+      ]);
+      const pData = await pRes.json();
+      const sData = await sRes.json();
+      setProteins(pData.items ?? []);
+      setSides(sData.items ?? []);
+
+      const ids = (data.items ?? []).map((it: MealTypeItem) => it.id);
+      const pairs = await Promise.all(
+        ids.map(async (id: string) => {
+          const r = await fetch(`/api/admin/menu/meal-types/${id}/items`);
+          const d = await r.json();
+          return [id, { protein_ids: d.protein_ids ?? [], side_ids: d.side_ids ?? [] }] as const;
+        }),
+      );
+      const map: Record<string, { protein_ids: string[]; side_ids: string[] }> = {};
+      for (const [id, value] of pairs) map[id] = value;
+      setLinks(map);
     }
     setLoading(false);
   }
@@ -106,6 +131,37 @@ export function AdminMealTypesManager() {
       return;
     }
     setItems((prev) => prev.filter((it) => it.id !== id));
+  }
+
+  function toggleMealLink(
+    mealTypeId: string,
+    kind: "protein_ids" | "side_ids",
+    itemId: string,
+  ) {
+    setLinks((prev) => {
+      const current = prev[mealTypeId] ?? { protein_ids: [], side_ids: [] };
+      const arr = current[kind];
+      const nextArr = arr.includes(itemId)
+        ? arr.filter((id) => id !== itemId)
+        : [...arr, itemId];
+      return {
+        ...prev,
+        [mealTypeId]: { ...current, [kind]: nextArr },
+      };
+    });
+  }
+
+  async function saveMealLinks(mealTypeId: string) {
+    const payload = links[mealTypeId] ?? { protein_ids: [], side_ids: [] };
+    const res = await fetch(`/api/admin/menu/meal-types/${mealTypeId}/items`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error ?? "Erro ao salvar itens da marmita.");
+    }
   }
 
   return (
@@ -332,6 +388,53 @@ export function AdminMealTypesManager() {
                 >
                   Excluir
                 </button>
+                <button
+                  type="button"
+                  onClick={() => saveMealLinks(it.id)}
+                  className="rounded-lg bg-blue-600 px-3 py-2 text-sm text-white"
+                >
+                  Salvar itens desta marmita
+                </button>
+              </div>
+              <div className="mt-3 grid gap-3 md:grid-cols-2 rounded-lg border border-gray-100 p-3">
+                <div>
+                  <p className="text-xs font-semibold text-gray-600 mb-2">
+                    Proteínas visíveis neste tipo
+                  </p>
+                  <div className="space-y-1 max-h-40 overflow-auto">
+                    {proteins
+                      .filter((p) => p.available)
+                      .map((p) => (
+                        <label key={`${it.id}-p-${p.id}`} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={(links[it.id]?.protein_ids ?? []).includes(p.id)}
+                            onChange={() => toggleMealLink(it.id, "protein_ids", p.id)}
+                          />
+                          {p.name}
+                        </label>
+                      ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-600 mb-2">
+                    Acompanhamentos visíveis neste tipo
+                  </p>
+                  <div className="space-y-1 max-h-40 overflow-auto">
+                    {sides
+                      .filter((s) => s.available)
+                      .map((s) => (
+                        <label key={`${it.id}-s-${s.id}`} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={(links[it.id]?.side_ids ?? []).includes(s.id)}
+                            onChange={() => toggleMealLink(it.id, "side_ids", s.id)}
+                          />
+                          {s.name}
+                        </label>
+                      ))}
+                  </div>
+                </div>
               </div>
             </article>
           ))}

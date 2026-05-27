@@ -177,6 +177,46 @@ to service_role
 using (true)
 with check (true);
 
+-- Itens permitidos por tipo de marmita (isolamento entre marmitas)
+create table if not exists meal_type_proteins (
+  meal_type_id uuid not null references meal_types(id) on delete cascade,
+  protein_id uuid not null references proteins(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (meal_type_id, protein_id)
+);
+
+create table if not exists meal_type_sides (
+  meal_type_id uuid not null references meal_types(id) on delete cascade,
+  side_id uuid not null references sides(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (meal_type_id, side_id)
+);
+
+alter table meal_type_proteins enable row level security;
+alter table meal_type_sides enable row level security;
+
+create policy "meal_type_proteins_public_select" on meal_type_proteins
+for select
+to anon, authenticated
+using (true);
+
+create policy "meal_type_sides_public_select" on meal_type_sides
+for select
+to anon, authenticated
+using (true);
+
+create policy "meal_type_proteins_service_role_all" on meal_type_proteins
+for all
+to service_role
+using (true)
+with check (true);
+
+create policy "meal_type_sides_service_role_all" on meal_type_sides
+for all
+to service_role
+using (true)
+with check (true);
+
 -- Pedidos antigos: adicionar coluna proteins se a tabela já existir
 alter table orders add column if not exists proteins jsonb not null default '[]'::jsonb;
 
@@ -187,3 +227,16 @@ values
   ('executiva', 'Marmita Executiva', 'Porção reforçada com proteína e acompanhamentos.', 2490, '🔥', 1, 4, 1),
   ('fit', 'Marmita Fit', 'Linha mais leve.', 2290, '🥗', 1, 4, 2)
 on conflict (slug) do nothing;
+
+-- Vincula todos os itens atuais aos tipos existentes (bootstrap inicial).
+insert into meal_type_proteins (meal_type_id, protein_id)
+select mt.id, p.id
+from meal_types mt
+cross join proteins p
+on conflict do nothing;
+
+insert into meal_type_sides (meal_type_id, side_id)
+select mt.id, s.id
+from meal_types mt
+cross join sides s
+on conflict do nothing;

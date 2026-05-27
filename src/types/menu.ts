@@ -28,4 +28,6 @@ export interface MenuResponse {
   mealTypes: MealTypeItem[];
   proteins: MenuItem[];
   sides: MenuItem[];
+  mealTypeProteins: Record<string, string[]>;
+  mealTypeSides: Record<string, string[]>;
 }

@@ -107,7 +107,11 @@ export async function getPublicMenu() {
     listItems("proteins"),
     listItems("sides"),
   ]);
-  return { mealTypes, proteins, sides };
+  const [mealTypeProteins, mealTypeSides] = await Promise.all([
+    listMealTypeItemIds("meal_type_proteins", "protein_id", mealTypes.map((m) => m.id)),
+    listMealTypeItemIds("meal_type_sides", "side_id", mealTypes.map((m) => m.id)),
+  ]);
+  return { mealTypes, proteins, sides, mealTypeProteins, mealTypeSides };
 }
 
 export async function adminListMenuItems(table: "proteins" | "sides") {
@@ -211,6 +215,31 @@ export async function adminCreateMealType(input: {
     .select()
     .single();
   if (error) return { error: error.message };
+  const mealTypeId = data.id as string;
+  const [proteinIdsRes, sideIdsRes] = await Promise.all([
+    supabase.from("proteins").select("id").eq("available", true),
+    supabase.from("sides").select("id").eq("available", true),
+  ]);
+  if (proteinIdsRes.error) return { error: proteinIdsRes.error.message };
+  if (sideIdsRes.error) return { error: sideIdsRes.error.message };
+  if ((proteinIdsRes.data ?? []).length > 0) {
+    const { error: linkError } = await supabase.from("meal_type_proteins").insert(
+      (proteinIdsRes.data ?? []).map((p) => ({
+        meal_type_id: mealTypeId,
+        protein_id: p.id as string,
+      })),
+    );
+    if (linkError) return { error: linkError.message };
+  }
+  if ((sideIdsRes.data ?? []).length > 0) {
+    const { error: linkError } = await supabase.from("meal_type_sides").insert(
+      (sideIdsRes.data ?? []).map((s) => ({
+        meal_type_id: mealTypeId,
+        side_id: s.id as string,
+      })),
+    );
+    if (linkError) return { error: linkError.message };
+  }
   return { item: mapMealType(data) };
 }
 
@@ -274,5 +303,83 @@ export async function adminDeleteMealType(id: string) {
   const supabase = getSupabaseAdmin();
   const { error } = await supabase.from("meal_types").delete().eq("id", id);
   if (error) return { error: error.message };
+  return { ok: true };
+}
+
+async function listMealTypeItemIds(
+  table: "meal_type_proteins" | "meal_type_sides",
+  itemCol: "protein_id" | "side_id",
+  mealTypeIds: string[],
+): Promise<Record<string, string[]>> {
+  if (mealTypeIds.length === 0) return {};
+  if (!isSupabaseEnabled()) {
+    const allFallback =
+      itemCol === "protein_id" ? PROTEINS.map((p) => p.id) : SIDES.map((s) => s.id);
+    const map: Record<string, string[]> = {};
+    for (const id of mealTypeIds) map[id] = allFallback;
+    return map;
+  }
+
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from(table)
+    .select(`meal_type_id, ${itemCol}`)
+    .in("meal_type_id", mealTypeIds);
+  if (error) throw new Error(error.message);
+  const map: Record<string, string[]> = {};
+  for (const id of mealTypeIds) map[id] = [];
+  for (const row of data ?? []) {
+    const rowAny = row as Record<string, unknown>;
+    const mealTypeId = rowAny.meal_type_id as string;
+    const itemId = rowAny[itemCol] as string;
+    if (!map[mealTypeId]) map[mealTypeId] = [];
+    map[mealTypeId].push(itemId);
+  }
+  return map;
+}
+
+export async function adminGetMealTypeItems(mealTypeId: string) {
+  const [proteins, sides] = await Promise.all([
+    listMealTypeItemIds("meal_type_proteins", "protein_id", [mealTypeId]),
+    listMealTypeItemIds("meal_type_sides", "side_id", [mealTypeId]),
+  ]);
+  return {
+    protein_ids: proteins[mealTypeId] ?? [],
+    side_ids: sides[mealTypeId] ?? [],
+  };
+}
+
+export async function getMealTypeAllowedItemIds(mealTypeId: string) {
+  return adminGetMealTypeItems(mealTypeId);
+}
+
+export async function adminSetMealTypeItems(
+  mealTypeId: string,
+  input: { protein_ids: string[]; side_ids: string[] },
+) {
+  if (!isSupabaseEnabled()) return { error: "Supabase não configurado." };
+  const supabase = getSupabaseAdmin();
+
+  const uniqueProteins = [...new Set(input.protein_ids)];
+  const uniqueSides = [...new Set(input.side_ids)];
+
+  const delP = await supabase.from("meal_type_proteins").delete().eq("meal_type_id", mealTypeId);
+  if (delP.error) return { error: delP.error.message };
+  const delS = await supabase.from("meal_type_sides").delete().eq("meal_type_id", mealTypeId);
+  if (delS.error) return { error: delS.error.message };
+
+  if (uniqueProteins.length > 0) {
+    const { error } = await supabase.from("meal_type_proteins").insert(
+      uniqueProteins.map((protein_id) => ({ meal_type_id: mealTypeId, protein_id })),
+    );
+    if (error) return { error: error.message };
+  }
+  if (uniqueSides.length > 0) {
+    const { error } = await supabase.from("meal_type_sides").insert(
+      uniqueSides.map((side_id) => ({ meal_type_id: mealTypeId, side_id })),
+    );
+    if (error) return { error: error.message };
+  }
+
   return { ok: true };
 }

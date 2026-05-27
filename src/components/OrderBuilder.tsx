@@ -29,6 +29,8 @@ export function OrderBuilder() {
   const [mealTypes, setMealTypes] = useState<MealTypeItem[]>([]);
   const [proteins, setProteins] = useState<MenuItem[]>([]);
   const [sides, setSides] = useState<MenuItem[]>([]);
+  const [mealTypeProteins, setMealTypeProteins] = useState<Record<string, string[]>>({});
+  const [mealTypeSides, setMealTypeSides] = useState<Record<string, string[]>>({});
 
   const selectedMeal = useMemo(
     () => mealTypes.find((m) => m.id === mealTypeId),
@@ -37,6 +39,10 @@ export function OrderBuilder() {
 
   const requiredProteins = selectedMeal?.required_proteins ?? 1;
   const requiredSides = selectedMeal?.required_sides ?? 4;
+  const allowedProteinIds = selectedMeal
+    ? (mealTypeProteins[selectedMeal.id] ?? [])
+    : [];
+  const allowedSideIds = selectedMeal ? (mealTypeSides[selectedMeal.id] ?? []) : [];
 
   useEffect(() => {
     let cancelled = false;
@@ -49,6 +55,8 @@ export function OrderBuilder() {
         setMealTypes(data.mealTypes ?? []);
         setProteins(data.proteins ?? []);
         setSides(data.sides ?? []);
+        setMealTypeProteins(data.mealTypeProteins ?? {});
+        setMealTypeSides(data.mealTypeSides ?? {});
       } catch {
         /* ignore */
       }
@@ -221,7 +229,7 @@ export function OrderBuilder() {
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
             {proteins
-              .filter((p) => p.available)
+              .filter((p) => p.available && allowedProteinIds.includes(p.id))
               .sort(
                 (a, b) =>
                   a.position - b.position ||
@@ -276,7 +284,7 @@ export function OrderBuilder() {
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
             {sides
-              .filter((s) => s.available)
+              .filter((s) => s.available && allowedSideIds.includes(s.id))
               .sort(
                 (a, b) =>
                   a.position - b.position ||

@@ -1,7 +1,7 @@
 import {
   calculateTotalFromMeal,
 } from "@/lib/menu";
-import { getMealTypeById } from "@/lib/menu-store";
+import { getMealTypeAllowedItemIds, getMealTypeById } from "@/lib/menu-store";
 import { mapOrderRow } from "@/lib/order-items";
 import { formatOrderNumber, todayKey } from "@/lib/order-number";
 import { normalizePhone } from "@/lib/phone";
@@ -66,9 +66,15 @@ export async function supabaseCreateOrder(
   if (validation) return { error: validation };
 
   const supabase = getSupabaseAdmin();
+  const allowed = await getMealTypeAllowedItemIds(meal.id);
 
   let proteinRows: { id: string; name: string; available: boolean }[] = [];
   if (meal.required_proteins > 0) {
+    if (
+      input.protein_ids.some((id) => !allowed.protein_ids.includes(id))
+    ) {
+      return { error: "Proteína não permitida para este tipo de marmita." };
+    }
     const proteinRes = await supabase
       .from("proteins")
       .select("id,name,available")
@@ -85,6 +91,11 @@ export async function supabaseCreateOrder(
 
   let sideRows: { id: string; name: string; available: boolean }[] = [];
   if (meal.required_sides > 0) {
+    if (input.side_ids.some((id) => !allowed.side_ids.includes(id))) {
+      return {
+        error: "Acompanhamento não permitido para este tipo de marmita.",
+      };
+    }
     const sidesRes = await supabase
       .from("sides")
       .select("id,name,available")
