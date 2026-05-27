@@ -123,8 +123,8 @@ export function OrderSuccess({
       {STORE.pixCopyCode && (
         <div className="space-y-2 rounded-xl border border-green-200 bg-green-50 p-4">
           <p className="text-sm font-medium text-green-900">
-            Pague com PIX e envie o comprovante para o WhatsApp.
-            obs: pagamentos via cartão ou dinheiro deverão ser comunicados no WhatsApp
+            Após realizar o pagamento via PIX, envie o comprovante pelo WhatsApp para confirmação do pedido.
+            Obs: Pagamentos via cartão ou dinheiro deverão ser comunicados pelo WhatsApp e realizados presencialmente.
           </p>
           <textarea
             readOnly
