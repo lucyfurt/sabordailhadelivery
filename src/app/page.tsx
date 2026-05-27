@@ -70,7 +70,8 @@ export default function HomePage() {
       <footer className="py-8 text-center text-sm text-gray-600">
         <p className="font-semibold">{STORE_NAME}</p>
         <p>{STORE.tagline}</p>
-       <a href="https://ilha3d-studio-com-br.vercel.app/" target="_blank"><p>{STORE.desenvolvedor}</p></a> 
+        <p>Desenvolvido por -- <a href="https://ilha3d-studio-com-br.vercel.app/" target="_blank">{STORE.desenvolvedor}</a> </p>
+      
       </footer>
     </>
   );
