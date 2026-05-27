@@ -35,11 +35,23 @@ export function buildCustomerWhatsAppMessage(order: Order): string {
       : "Retirada no local";
 
   const itemsBlock = formatItemsBlock(order);
+  const additionalsBlock =
+    order.additionals.length > 0
+      ? [
+          "",
+          "*Adicionais:*",
+          ...order.additionals.map(
+            (a) =>
+              `- ${a.name} x${a.quantity} (${formatPrice(a.total_cents)})`,
+          ),
+        ]
+      : [];
 
   return [
     `Olá! Pedido *#${order.order_number}* registrado no Sabor da Ilha.`,
     ``,
     ...itemsBlock,
+    ...additionalsBlock,
     order.notes ? `Obs: ${order.notes}` : null,
     delivery,
     `Total: *${formatPrice(order.total_cents)}*`,

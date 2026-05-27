@@ -1,4 +1,5 @@
 import { buildLineItem, calculateOrderTotal } from "@/lib/orders/build-line-item";
+import { resolveOrderAdditionals } from "@/lib/orders/additionals";
 import { mapOrderRow } from "@/lib/order-items";
 import { formatOrderNumber, todayKey } from "@/lib/order-number";
 import { normalizePhone } from "@/lib/phone";
@@ -63,6 +64,10 @@ export async function supabaseCreateOrder(
 
   const first = items[0];
   const firstProtein = first.proteins[0];
+  const additionalsResult = await resolveOrderAdditionals(input.additionals);
+  if (additionalsResult.error) return { error: additionalsResult.error };
+  const additionals = additionalsResult.items;
+  const additionalsTotal = additionals.reduce((sum, a) => sum + a.total_cents, 0);
   const orderNumber = formatOrderNumber(now, sequence);
   const row = {
     order_number: orderNumber,
@@ -71,6 +76,7 @@ export async function supabaseCreateOrder(
     delivery_type: input.delivery_type,
     address: input.address?.trim() ?? null,
     items,
+    additionals,
     meal_type_id: first.meal_type_id,
     meal_type_name:
       items.length > 1
@@ -81,7 +87,7 @@ export async function supabaseCreateOrder(
     protein_name: firstProtein?.name ?? "",
     sides: first.sides,
     notes: input.notes?.trim() ?? null,
-    total_cents: calculateOrderTotal(items, input.delivery_type),
+    total_cents: calculateOrderTotal(items, input.delivery_type, additionalsTotal),
     status: "awaiting_payment" as const,
   };
 

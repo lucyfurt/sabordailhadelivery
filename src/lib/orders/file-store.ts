@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
+import { resolveOrderAdditionals } from "@/lib/orders/additionals";
 import { buildLineItem, calculateOrderTotal } from "@/lib/orders/build-line-item";
 import { formatOrderNumber, todayKey } from "@/lib/order-number";
 import { normalizePhone } from "@/lib/phone";
@@ -78,6 +79,10 @@ export async function fileCreateOrder(
 
   const first = items[0];
   const firstProtein = first.proteins[0];
+  const additionalsResult = await resolveOrderAdditionals(input.additionals);
+  if (additionalsResult.error) return { error: additionalsResult.error };
+  const additionals = additionalsResult.items;
+  const additionalsTotal = additionals.reduce((sum, a) => sum + a.total_cents, 0);
   const now = new Date();
   const sequence = await nextSequence();
   const order: Order = {
@@ -88,6 +93,7 @@ export async function fileCreateOrder(
     delivery_type: input.delivery_type,
     address: input.address?.trim() ?? null,
     items,
+    additionals,
     meal_type_id: first.meal_type_id,
     meal_type_name:
       items.length > 1
@@ -98,7 +104,7 @@ export async function fileCreateOrder(
     protein_name: firstProtein?.name ?? "",
     sides: first.sides,
     notes: input.notes?.trim() ?? null,
-    total_cents: calculateOrderTotal(items, input.delivery_type),
+    total_cents: calculateOrderTotal(items, input.delivery_type, additionalsTotal),
     status: "awaiting_payment",
     created_at: now.toISOString(),
     paid_at: null,

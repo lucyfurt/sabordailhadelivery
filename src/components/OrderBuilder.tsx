@@ -9,7 +9,7 @@ import {
 } from "@/lib/menu";
 import type { CreateOrderLineInput } from "@/types/order";
 import type { DeliveryType } from "@/types/order";
-import type { MealTypeItem, MenuItem } from "@/types/menu";
+import type { AdditionalItem, MealTypeItem, MenuItem } from "@/types/menu";
 
 type Step = "meal" | "protein" | "sides" | "customer";
 
@@ -52,6 +52,10 @@ export function OrderBuilder() {
   const [mealTypeSides, setMealTypeSides] = useState<Record<string, string[]>>(
     {},
   );
+  const [additionals, setAdditionals] = useState<AdditionalItem[]>([]);
+  const [additionalQuantities, setAdditionalQuantities] = useState<
+    Record<string, number>
+  >({});
 
   const selectedMeal = useMemo(
     () => mealTypes.find((m) => m.id === mealTypeId),
@@ -78,6 +82,7 @@ export function OrderBuilder() {
         setMealTypes(data.mealTypes ?? []);
         setProteins(data.proteins ?? []);
         setSides(data.sides ?? []);
+        setAdditionals(data.additionals ?? []);
         setMealTypeProteins(data.mealTypeProteins ?? {});
         setMealTypeSides(data.mealTypeSides ?? {});
       } catch {
@@ -90,10 +95,29 @@ export function OrderBuilder() {
   }, []);
 
   const cartSubtotal = cart.reduce((sum, line) => sum + line.unitPriceCents, 0);
+  const additionalsSubtotal = useMemo(() => {
+    return additionals.reduce((sum, item) => {
+      const qty = additionalQuantities[item.id] ?? 0;
+      if (qty <= 0) return sum;
+      return sum + item.unit_price_cents * qty;
+    }, 0);
+  }, [additionals, additionalQuantities]);
   const total = useMemo(() => {
     if (cart.length === 0) return 0;
-    return calculateTotalFromMeal(cartSubtotal, deliveryType);
-  }, [cart.length, cartSubtotal, deliveryType]);
+    return calculateTotalFromMeal(
+      cartSubtotal + additionalsSubtotal,
+      deliveryType,
+    );
+  }, [cart.length, cartSubtotal, additionalsSubtotal, deliveryType]);
+
+  const selectedAdditionals = useMemo(() => {
+    return additionals
+      .filter((item) => item.available && (additionalQuantities[item.id] ?? 0) > 0)
+      .map((item) => ({
+        additional_id: item.id,
+        quantity: additionalQuantities[item.id] ?? 0,
+      }));
+  }, [additionals, additionalQuantities]);
 
   function resetMealSelection() {
     setMealTypeId("");
@@ -181,6 +205,13 @@ export function OrderBuilder() {
     setCart((prev) => prev.filter((l) => l.key !== key));
   }
 
+  function setAdditionalQuantity(id: string, quantity: number) {
+    setAdditionalQuantities((prev) => ({
+      ...prev,
+      [id]: Math.max(0, Math.min(99, quantity)),
+    }));
+  }
+
   function goToCustomer() {
     let nextCart = cart;
     if (mealTypeId && currentLineValid() === null) {
@@ -224,6 +255,7 @@ export function OrderBuilder() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           items,
+          additionals: selectedAdditionals,
           delivery_type: deliveryType,
           customer_name: customerName,
           customer_phone: customerPhone,
@@ -572,6 +604,12 @@ export function OrderBuilder() {
                 <span>Subtotal marmitas</span>
                 <span>{formatPrice(cartSubtotal)}</span>
               </p>
+              {additionalsSubtotal > 0 && (
+                <p className="flex justify-between text-gray-600">
+                  <span>Adicionais</span>
+                  <span>{formatPrice(additionalsSubtotal)}</span>
+                </p>
+              )}
               {deliveryType === "delivery" && (
                 <p className="flex justify-between text-gray-600">
                   <span>Taxa entrega</span>
@@ -638,6 +676,68 @@ export function OrderBuilder() {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
+
+          {additionals.length > 0 && (
+            <div className="rounded-xl border border-orange-100 bg-orange-50 p-4">
+              <p className="font-bold text-orange-900">Acompanhamentos adicionais (opcional)</p>
+              <p className="text-sm text-orange-800">
+                Se quiser, adicione unidades extras ao pedido.
+              </p>
+              <div className="mt-3 space-y-2">
+                {additionals
+                  .filter((item) => item.available)
+                  .sort(
+                    (a, b) =>
+                      a.position - b.position ||
+                      a.name.localeCompare(b.name, "pt-BR"),
+                  )
+                  .map((item) => {
+                    const qty = additionalQuantities[item.id] ?? 0;
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between rounded-lg bg-white p-3"
+                      >
+                        <div>
+                          <p className="font-medium">{item.name}</p>
+                          <p className="text-sm text-gray-600">
+                            {formatPrice(item.unit_price_cents)} / unidade
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setAdditionalQuantity(item.id, qty - 1)}
+                            className="h-8 w-8 rounded-lg border border-gray-300"
+                          >
+                            -
+                          </button>
+                          <input
+                            className="w-14 rounded-lg border border-gray-300 px-2 py-1 text-center"
+                            type="number"
+                            min={0}
+                            value={qty}
+                            onChange={(e) =>
+                              setAdditionalQuantity(
+                                item.id,
+                                Number.parseInt(e.target.value || "0", 10),
+                              )
+                            }
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setAdditionalQuantity(item.id, qty + 1)}
+                            className="h-8 w-8 rounded-lg border border-gray-300"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
 
           <div className="rounded-xl bg-orange-50 p-4 text-center">
             <p className="text-sm text-gray-600">Total do pedido</p>

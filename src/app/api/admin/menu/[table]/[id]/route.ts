@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/auth";
 import { adminDeleteMenuItem, adminUpdateMenuItem } from "@/lib/menu-store";
 
-function asTable(value: string): "proteins" | "sides" | null {
-  if (value === "proteins" || value === "sides") return value;
+function asTable(value: string): "proteins" | "sides" | "additionals" | null {
+  if (value === "proteins" || value === "sides" || value === "additionals") {
+    return value;
+  }
   return null;
 }
 
@@ -23,6 +25,7 @@ export async function PATCH(
     available?: boolean;
     fit?: boolean;
     position?: number;
+    unit_price_cents?: number;
   };
 
   const result = await adminUpdateMenuItem(table, id, body);

@@ -58,6 +58,12 @@ export function mapOrderRow(row: Record<string, unknown>): Order {
     delivery_type: row.delivery_type as Order["delivery_type"],
     address: (row.address as string | null) ?? null,
     items,
+    additionals: ((row.additionals as Order["additionals"]) ?? []).map((a) => ({
+      ...a,
+      quantity: Number(a.quantity ?? 0),
+      unit_price_cents: Number(a.unit_price_cents ?? 0),
+      total_cents: Number(a.total_cents ?? 0),
+    })),
     meal_type_id: first?.meal_type_id ?? (row.meal_type_id as string),
     meal_type_name:
       items.length > 1

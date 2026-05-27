@@ -14,6 +14,7 @@ create table if not exists orders (
   proteins jsonb not null default '[]'::jsonb,
   sides jsonb not null,
   items jsonb not null default '[]'::jsonb,
+  additionals jsonb not null default '[]'::jsonb,
   notes text,
   total_cents integer not null,
   status text not null default 'awaiting_payment',
@@ -27,6 +28,7 @@ create index if not exists orders_order_number_idx on orders (order_number);
 
 -- Pedidos com várias marmitas (execute se a tabela já existir)
 alter table orders add column if not exists items jsonb not null default '[]'::jsonb;
+alter table orders add column if not exists additionals jsonb not null default '[]'::jsonb;
 
 create table if not exists daily_counters (
   date_key text primary key,
@@ -125,8 +127,21 @@ create table if not exists sides (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists additionals (
+  id uuid primary key default gen_random_uuid(),
+  slug text unique not null,
+  name text not null,
+  unit_price_cents integer not null default 0 check (unit_price_cents >= 0),
+  available boolean not null default true,
+  fit boolean not null default false,
+  position integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 alter table proteins enable row level security;
 alter table sides enable row level security;
+alter table additionals enable row level security;
 
 -- Público pode ler (para montar pedido no site)
 create policy "proteins_public_select" on proteins
@@ -139,6 +154,11 @@ for select
 to anon, authenticated
 using (true);
 
+create policy "additionals_public_select" on additionals
+for select
+to anon, authenticated
+using (true);
+
 -- Admin (service_role via Next.js server) pode gerenciar
 create policy "proteins_service_role_all" on proteins
 for all
@@ -147,6 +167,12 @@ using (true)
 with check (true);
 
 create policy "sides_service_role_all" on sides
+for all
+to service_role
+using (true)
+with check (true);
+
+create policy "additionals_service_role_all" on additionals
 for all
 to service_role
 using (true)

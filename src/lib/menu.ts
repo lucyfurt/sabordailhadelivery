@@ -77,6 +77,12 @@ export const SIDES: MenuOption[] = [
   { id: "banana-frita", name: "Banana da terra frita", available: true },
 ];
 
+export interface FallbackAdditionalOption extends MenuOption {
+  unit_price_cents: number;
+}
+
+export const ADDITIONALS: FallbackAdditionalOption[] = [];
+
 export const DELIVERY_FEE_CENTS = STORE.deliveryFeeCents;
 
 export function formatPrice(cents: number): string {

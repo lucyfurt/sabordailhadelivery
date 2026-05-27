@@ -82,6 +82,23 @@ export function OrderSuccess({
         <p>
           <strong>Total:</strong> {formatPrice(order.total_cents)}
         </p>
+        {order.additionals.length > 0 && (
+          <div className="rounded-lg bg-orange-50 p-3">
+            <p>
+              <strong>Adicionais:</strong>
+            </p>
+            <ul className="mt-1 space-y-1">
+              {order.additionals.map((a) => (
+                <li key={a.id} className="flex justify-between">
+                  <span>
+                    {a.name} x{a.quantity}
+                  </span>
+                  <span>{formatPrice(a.total_cents)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {isNew && (

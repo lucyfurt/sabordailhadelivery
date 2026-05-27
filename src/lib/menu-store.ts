@@ -1,11 +1,12 @@
 import { isSupabaseEnabled } from "@/lib/config";
 import {
+  ADDITIONALS,
   FALLBACK_MEAL_TYPES,
   PROTEINS,
   SIDES,
 } from "@/lib/menu";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import type { MealTypeItem, MenuItem } from "@/types/menu";
+import type { AdditionalItem, MealTypeItem, MenuItem } from "@/types/menu";
 
 function slugify(input: string): string {
   return input
@@ -16,8 +17,11 @@ function slugify(input: string): string {
     .replace(/(^-|-$)+/g, "");
 }
 
-function mapMenuItem(row: Record<string, unknown>): MenuItem {
-  return {
+function mapMenuItem(
+  row: Record<string, unknown>,
+  includeUnitPrice = false,
+): MenuItem | AdditionalItem {
+  const base = {
     id: row.id as string,
     slug: row.slug as string,
     name: row.name as string,
@@ -26,6 +30,11 @@ function mapMenuItem(row: Record<string, unknown>): MenuItem {
     position: Number(row.position ?? 0),
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
+  };
+  if (!includeUnitPrice) return base;
+  return {
+    ...base,
+    unit_price_cents: Number(row.unit_price_cents ?? 0),
   };
 }
 
@@ -46,9 +55,16 @@ function mapMealType(row: Record<string, unknown>): MealTypeItem {
   };
 }
 
-async function listItems(table: "proteins" | "sides"): Promise<MenuItem[]> {
+async function listItems(
+  table: "proteins" | "sides" | "additionals",
+): Promise<Array<MenuItem | AdditionalItem>> {
   if (!isSupabaseEnabled()) {
-    const items = table === "proteins" ? PROTEINS : SIDES;
+    const items =
+      table === "proteins"
+        ? PROTEINS
+        : table === "sides"
+          ? SIDES
+          : ADDITIONALS;
     const now = new Date().toISOString();
     return items.map((it, idx) => ({
       id: it.id,
@@ -59,6 +75,13 @@ async function listItems(table: "proteins" | "sides"): Promise<MenuItem[]> {
       position: idx,
       created_at: now,
       updated_at: now,
+      ...(table === "additionals"
+        ? {
+            unit_price_cents: Number(
+              (it as { unit_price_cents?: number }).unit_price_cents ?? 0,
+            ),
+          }
+        : {}),
     }));
   }
   const supabase = getSupabaseAdmin();
@@ -68,7 +91,9 @@ async function listItems(table: "proteins" | "sides"): Promise<MenuItem[]> {
     .order("position", { ascending: true })
     .order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
-  return (data ?? []).map(mapMenuItem);
+  return (data ?? []).map((row) =>
+    mapMenuItem(row as Record<string, unknown>, table === "additionals"),
+  );
 }
 
 async function listMealTypes(includeUnavailable = false): Promise<MealTypeItem[]> {
@@ -102,19 +127,29 @@ export async function getMealTypeById(
 }
 
 export async function getPublicMenu() {
-  const [mealTypes, proteins, sides] = await Promise.all([
+  const [mealTypes, proteins, sides, additionals] = await Promise.all([
     listMealTypes(false),
     listItems("proteins"),
     listItems("sides"),
+    listItems("additionals"),
   ]);
   const [mealTypeProteins, mealTypeSides] = await Promise.all([
     listMealTypeItemIds("meal_type_proteins", "protein_id", mealTypes.map((m) => m.id)),
     listMealTypeItemIds("meal_type_sides", "side_id", mealTypes.map((m) => m.id)),
   ]);
-  return { mealTypes, proteins, sides, mealTypeProteins, mealTypeSides };
+  return {
+    mealTypes,
+    proteins: proteins as MenuItem[],
+    sides: sides as MenuItem[],
+    additionals: additionals as AdditionalItem[],
+    mealTypeProteins,
+    mealTypeSides,
+  };
 }
 
-export async function adminListMenuItems(table: "proteins" | "sides") {
+export async function adminListMenuItems(
+  table: "proteins" | "sides" | "additionals",
+) {
   return listItems(table);
 }
 
@@ -123,8 +158,8 @@ export async function adminListMealTypes() {
 }
 
 export async function adminCreateMenuItem(
-  table: "proteins" | "sides",
-  input: { name: string; position?: number },
+  table: "proteins" | "sides" | "additionals",
+  input: { name: string; position?: number; unit_price_cents?: number },
 ) {
   if (!isSupabaseEnabled()) {
     return { error: "Supabase não configurado." };
@@ -136,16 +171,28 @@ export async function adminCreateMenuItem(
     fit: false,
     position: input.position ?? 0,
     available: true,
+    ...(table === "additionals"
+      ? { unit_price_cents: Math.max(0, Number(input.unit_price_cents ?? 0)) }
+      : {}),
   };
   const { data, error } = await supabase.from(table).insert(row).select().single();
   if (error) return { error: error.message };
-  return { item: mapMenuItem(data) };
+  return {
+    item: mapMenuItem(
+      data as Record<string, unknown>,
+      table === "additionals",
+    ),
+  };
 }
 
 export async function adminUpdateMenuItem(
-  table: "proteins" | "sides",
+  table: "proteins" | "sides" | "additionals",
   id: string,
-  patch: Partial<Pick<MenuItem, "name" | "available" | "position">>,
+  patch: Partial<
+    Pick<MenuItem, "name" | "available" | "position"> & {
+      unit_price_cents: number;
+    }
+  >,
 ) {
   if (!isSupabaseEnabled()) {
     return { error: "Supabase não configurado." };
@@ -160,6 +207,9 @@ export async function adminUpdateMenuItem(
     toUpdate.name = patch.name.trim();
     toUpdate.slug = slugify(patch.name);
   }
+  if (table === "additionals" && typeof patch.unit_price_cents === "number") {
+    toUpdate.unit_price_cents = Math.max(0, patch.unit_price_cents);
+  }
 
   const { data, error } = await supabase
     .from(table)
@@ -169,11 +219,16 @@ export async function adminUpdateMenuItem(
     .single();
 
   if (error) return { error: error.message };
-  return { item: mapMenuItem(data) };
+  return {
+    item: mapMenuItem(
+      data as Record<string, unknown>,
+      table === "additionals",
+    ),
+  };
 }
 
 export async function adminDeleteMenuItem(
-  table: "proteins" | "sides",
+  table: "proteins" | "sides" | "additionals",
   id: string,
 ) {
   if (!isSupabaseEnabled()) {

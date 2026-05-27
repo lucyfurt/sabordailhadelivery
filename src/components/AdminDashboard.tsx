@@ -224,6 +224,21 @@ export function AdminDashboard() {
                   </li>
                 ))}
               </ul>
+              {order.additionals.length > 0 && (
+                <div className="mt-2 rounded-lg bg-orange-50 p-2 text-sm">
+                  <p className="font-medium text-orange-900">Adicionais</p>
+                  <ul className="mt-1 space-y-1 text-orange-900">
+                    {order.additionals.map((a) => (
+                      <li key={a.id} className="flex justify-between">
+                        <span>
+                          {a.name} x{a.quantity}
+                        </span>
+                        <span>{formatPrice(a.total_cents)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {order.address && (
                 <p className="text-sm text-gray-600">📍 {order.address}</p>
               )}

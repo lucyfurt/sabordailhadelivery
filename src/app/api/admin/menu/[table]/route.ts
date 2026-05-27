@@ -5,8 +5,10 @@ import {
   adminListMenuItems,
 } from "@/lib/menu-store";
 
-function asTable(value: string): "proteins" | "sides" | null {
-  if (value === "proteins" || value === "sides") return value;
+function asTable(value: string): "proteins" | "sides" | "additionals" | null {
+  if (value === "proteins" || value === "sides" || value === "additionals") {
+    return value;
+  }
   return null;
 }
 
@@ -43,12 +45,17 @@ export async function POST(
   const table = asTable(raw);
   if (!table) return NextResponse.json({ error: "Tabela inválida." }, { status: 400 });
 
-  const body = (await request.json()) as { name?: string; position?: number };
+  const body = (await request.json()) as {
+    name?: string;
+    position?: number;
+    unit_price_cents?: number;
+  };
   if (!body.name?.trim()) return NextResponse.json({ error: "Informe o nome." }, { status: 400 });
 
   const result = await adminCreateMenuItem(table, {
     name: body.name,
     position: body.position,
+    unit_price_cents: body.unit_price_cents,
   });
   if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
   return NextResponse.json({ item: result.item }, { status: 201 });

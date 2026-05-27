@@ -14,6 +14,14 @@ export interface MenuItemRef {
   name: string;
 }
 
+export interface OrderAdditionalItem {
+  id: string;
+  name: string;
+  unit_price_cents: number;
+  quantity: number;
+  total_cents: number;
+}
+
 export interface OrderLineItem {
   meal_type_id: string;
   meal_type_name: string;
@@ -30,6 +38,7 @@ export interface Order {
   delivery_type: DeliveryType;
   address: string | null;
   items: OrderLineItem[];
+  additionals: OrderAdditionalItem[];
   /** Campos legados (primeira marmita) — mantidos para pedidos antigos */
   meal_type_id: string;
   meal_type_name: string;
@@ -57,7 +66,13 @@ export interface CreateOrderInput {
   delivery_type: DeliveryType;
   address?: string;
   items: CreateOrderLineInput[];
+  additionals?: CreateOrderAdditionalInput[];
   notes?: string;
+}
+
+export interface CreateOrderAdditionalInput {
+  additional_id: string;
+  quantity: number;
 }
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {

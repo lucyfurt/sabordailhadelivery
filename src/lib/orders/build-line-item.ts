@@ -136,8 +136,9 @@ export async function buildLineItem(
 export function calculateOrderTotal(
   items: OrderLineItem[],
   deliveryType: "pickup" | "delivery",
+  additionalsTotalCents = 0,
 ): number {
   const subtotal = items.reduce((sum, i) => sum + i.unit_price_cents, 0);
   if (items.length === 0) return 0;
-  return calculateTotalFromMeal(subtotal, deliveryType);
+  return calculateTotalFromMeal(subtotal + additionalsTotalCents, deliveryType);
 }

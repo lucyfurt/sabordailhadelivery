@@ -9,6 +9,10 @@ export interface MenuItem {
   updated_at: string;
 }
 
+export interface AdditionalItem extends MenuItem {
+  unit_price_cents: number;
+}
+
 export interface MealTypeItem {
   id: string;
   slug: string;
@@ -28,6 +32,7 @@ export interface MenuResponse {
   mealTypes: MealTypeItem[];
   proteins: MenuItem[];
   sides: MenuItem[];
+  additionals: AdditionalItem[];
   mealTypeProteins: Record<string, string[]>;
   mealTypeSides: Record<string, string[]>;
 }
