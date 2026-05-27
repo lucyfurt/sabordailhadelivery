@@ -13,7 +13,7 @@ export default function HomePage() {
         <section className="bg-gradient-to-br from-orange-500 to-red-600 px-4 py-16 text-white">
           <div className="mx-auto grid max-w-5xl items-center gap-10 md:grid-cols-2">
             <div>
-              <span className="inline-block rounded-full bg-white/20 px-4 py-2 text-sm font-bold">
+              <span className=" flex justify-center inline-block rounded-full bg-white/20 px-4 py-2 text-sm font-bold ">
                 CARDÁPIO ONLINE
               </span>
              <div className="flex justify-center">
