@@ -1,6 +1,6 @@
 import { formatPrice } from "@/lib/menu";
 import type { Order } from "@/types/order";
-import { orderProteinLabel } from "@/types/order";
+import { getOrderItems, lineProteinLabel, orderMealSummary } from "@/types/order";
 
 const STORE_WHATSAPP_NUMBER =
   process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "5598992019061";
@@ -10,19 +10,36 @@ function encodeMessage(message: string, phone: string) {
   return `https://wa.me/${phone}?text=${encoded}`;
 }
 
+function formatItemsBlock(order: Order): string[] {
+  const items = getOrderItems(order);
+  if (items.length === 1) {
+    const item = items[0];
+    return [
+      `*${item.meal_type_name}*`,
+      `Proteína(s): ${lineProteinLabel(item)}`,
+      `Acompanhamentos: ${item.sides.map((s) => s.name).join(", ") || "—"}`,
+    ];
+  }
+  return items.flatMap((item, i) => [
+    `*Marmita ${i + 1}: ${item.meal_type_name}*`,
+    `Proteína(s): ${lineProteinLabel(item)}`,
+    `Acompanhamentos: ${item.sides.map((s) => s.name).join(", ") || "—"}`,
+    ``,
+  ]);
+}
+
 export function buildCustomerWhatsAppMessage(order: Order): string {
-  const sides = order.sides.map((s) => s.name).join(", ");
   const delivery =
     order.delivery_type === "delivery"
       ? `Entrega: ${order.address ?? "—"}`
       : "Retirada no local";
 
+  const itemsBlock = formatItemsBlock(order);
+
   return [
     `Olá! Pedido *#${order.order_number}* registrado no Sabor da Ilha.`,
     ``,
-    `*${order.meal_type_name}*`,
-    `Proteína(s): ${orderProteinLabel(order)}`,
-    `Acompanhamentos: ${sides}`,
+    ...itemsBlock,
     order.notes ? `Obs: ${order.notes}` : null,
     delivery,
     `Total: *${formatPrice(order.total_cents)}*`,
@@ -32,7 +49,8 @@ export function buildCustomerWhatsAppMessage(order: Order): string {
 }
 
 export function buildAdminStatusMessage(order: Order): string {
-  const base = `Pedido *#${order.order_number}* - ${order.meal_type_name}`;
+  const summary = orderMealSummary(order);
+  const base = `Pedido *#${order.order_number}* - ${summary}`;
   const total = `Valor: *${formatPrice(order.total_cents)}*`;
 
   switch (order.status) {
@@ -112,13 +130,11 @@ export function buildAdminStatusMessage(order: Order): string {
   }
 }
 
-// Link que o cliente vê (para falar com o número da loja)
 export function orderWhatsAppUrl(order: Order): string {
   const message = buildCustomerWhatsAppMessage(order);
   return encodeMessage(message, STORE_WHATSAPP_NUMBER);
 }
 
-// Link que o admin usa para falar direto com o cliente
 export function adminOrderWhatsAppUrl(order: Order): string {
   const phone = order.customer_phone.replace(/\D/g, "");
   const message = buildAdminStatusMessage(order);

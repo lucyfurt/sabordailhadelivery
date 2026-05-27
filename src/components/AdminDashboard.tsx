@@ -14,7 +14,7 @@ import type { Order, OrderStatus } from "@/types/order";
 import { ORDER_STATUS_LABELS } from "@/types/order";
 import { AdminMealTypesManager } from "@/components/AdminMealTypesManager";
 import { AdminMenuManager } from "@/components/AdminMenuManager";
-import { orderProteinLabel } from "@/types/order";
+import { getOrderItems, lineProteinLabel } from "@/types/order";
 
 const STATUS_OPTIONS: OrderStatus[] = [
   "awaiting_payment",
@@ -206,12 +206,24 @@ export function AdminDashboard() {
                 </div>
                 <p className="font-bold">{formatPrice(order.total_cents)}</p>
               </div>
-              <p className="mt-2 text-sm">
-                {order.meal_type_name} · {orderProteinLabel(order)}
-              </p>
-              <p className="text-sm text-gray-600">
-                {order.sides.map((s) => s.name).join(", ")}
-              </p>
+              <ul className="mt-2 space-y-2 text-sm">
+                {getOrderItems(order).map((item, i) => (
+                  <li key={i}>
+                    <span className="font-medium">{item.meal_type_name}</span>
+                    {getOrderItems(order).length > 1 && (
+                      <span className="text-gray-500">
+                        {" "}
+                        · {formatPrice(item.unit_price_cents)}
+                      </span>
+                    )}
+                    <p className="text-gray-600">
+                      {lineProteinLabel(item)}
+                      {item.sides.length > 0 &&
+                        ` · ${item.sides.map((s) => s.name).join(", ")}`}
+                    </p>
+                  </li>
+                ))}
+              </ul>
               {order.address && (
                 <p className="text-sm text-gray-600">📍 {order.address}</p>
               )}

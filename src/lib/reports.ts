@@ -1,5 +1,5 @@
 import type { Order } from "@/types/order";
-import { orderProteinLabel } from "@/types/order";
+import { getOrderItems } from "@/types/order";
 
 export interface SideCount {
   name: string;
@@ -25,8 +25,10 @@ export function countSides(orders: Order[]): SideCount[] {
   const map = new Map<string, number>();
   for (const order of orders) {
     if (order.status === "cancelled" || order.status === "expired") continue;
-    for (const side of order.sides) {
-      map.set(side.name, (map.get(side.name) ?? 0) + 1);
+    for (const item of getOrderItems(order)) {
+      for (const side of item.sides) {
+        map.set(side.name, (map.get(side.name) ?? 0) + 1);
+      }
     }
   }
   return [...map.entries()]
@@ -38,9 +40,10 @@ export function countProteins(orders: Order[]): ProteinCount[] {
   const map = new Map<string, number>();
   for (const order of orders) {
     if (order.status === "cancelled" || order.status === "expired") continue;
-    const label = orderProteinLabel(order);
-    for (const part of label.split(", ")) {
-      map.set(part, (map.get(part) ?? 0) + 1);
+    for (const item of getOrderItems(order)) {
+      for (const protein of item.proteins) {
+        map.set(protein.name, (map.get(protein.name) ?? 0) + 1);
+      }
     }
   }
   return [...map.entries()]

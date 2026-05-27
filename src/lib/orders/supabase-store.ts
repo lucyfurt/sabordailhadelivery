@@ -1,45 +1,12 @@
-import {
-  calculateTotalFromMeal,
-} from "@/lib/menu";
-import { getMealTypeAllowedItemIds, getMealTypeById } from "@/lib/menu-store";
+import { buildLineItem, calculateOrderTotal } from "@/lib/orders/build-line-item";
 import { mapOrderRow } from "@/lib/order-items";
 import { formatOrderNumber, todayKey } from "@/lib/order-number";
 import { normalizePhone } from "@/lib/phone";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import type { CreateOrderInput, Order, OrderStatus } from "@/types/order";
 
-function validateBasics(
-  input: CreateOrderInput,
-  meal: NonNullable<Awaited<ReturnType<typeof getMealTypeById>>>,
-): string | null {
-  if (!meal.available) return "Tipo de marmita indisponível.";
-
-  const reqP = meal.required_proteins;
-  const reqS = meal.required_sides;
-
-  if (reqP > 0 && input.protein_ids.length !== reqP) {
-    return `Selecione exatamente ${reqP} proteína(s).`;
-  }
-  if (reqP > 0) {
-    const uniqueP = new Set(input.protein_ids);
-    if (uniqueP.size !== reqP) {
-      return "Não repita a mesma proteína.";
-    }
-  }
-
-  if (reqS > 0 && input.side_ids.length < 1) {
-    return "Selecione pelo menos 1 acompanhamento.";
-  }
-  if (reqS > 0 && input.side_ids.length > reqS) {
-    return `Selecione no máximo ${reqS} acompanhamento(s).`;
-  }
-  if (reqS > 0) {
-    const uniqueS = new Set(input.side_ids);
-    if (uniqueS.size !== input.side_ids.length) {
-      return "Não repita o mesmo acompanhamento.";
-    }
-  }
-
+function validateCustomer(input: CreateOrderInput): string | null {
+  if (!input.items?.length) return "Adicione pelo menos uma marmita ao pedido.";
   if (input.delivery_type === "delivery" && !input.address?.trim()) {
     return "Informe o endereço para entrega.";
   }
@@ -62,66 +29,19 @@ async function nextSequence(supabase: ReturnType<typeof getSupabaseAdmin>) {
 export async function supabaseCreateOrder(
   input: CreateOrderInput,
 ): Promise<{ order?: Order; error?: string }> {
-  const meal = await getMealTypeById(input.meal_type_id);
-  if (!meal) return { error: "Tipo de marmita inválido." };
+  const customerErr = validateCustomer(input);
+  if (customerErr) return { error: customerErr };
 
-  const validation = validateBasics(input, meal);
-  if (validation) return { error: validation };
+  const items = [];
+  for (let i = 0; i < input.items.length; i++) {
+    const result = await buildLineItem(input.items[i]);
+    if (result.error) {
+      return { error: `Marmita ${i + 1}: ${result.error}` };
+    }
+    items.push(result.item!);
+  }
 
   const supabase = getSupabaseAdmin();
-  const allowed = await getMealTypeAllowedItemIds(meal.id);
-
-  let proteinRows: { id: string; name: string; available: boolean }[] = [];
-  if (meal.required_proteins > 0) {
-    if (
-      input.protein_ids.some((id) => !allowed.protein_ids.includes(id))
-    ) {
-      return { error: "Proteína não permitida para este tipo de marmita." };
-    }
-    const proteinRes = await supabase
-      .from("proteins")
-      .select("id,name,available")
-      .in("id", input.protein_ids);
-    if (proteinRes.error) return { error: proteinRes.error.message };
-    proteinRows = proteinRes.data ?? [];
-    if (proteinRows.length !== meal.required_proteins) {
-      return { error: "Proteína inválida." };
-    }
-    if (proteinRows.some((p) => !p.available)) {
-      return { error: "Uma ou mais proteínas estão indisponíveis." };
-    }
-  }
-
-  let sideRows: { id: string; name: string; available: boolean }[] = [];
-  if (meal.required_sides > 0) {
-    if (input.side_ids.some((id) => !allowed.side_ids.includes(id))) {
-      return {
-        error: "Acompanhamento não permitido para este tipo de marmita.",
-      };
-    }
-    const sidesRes = await supabase
-      .from("sides")
-      .select("id,name,available")
-      .in("id", input.side_ids);
-    if (sidesRes.error) return { error: sidesRes.error.message };
-    sideRows = sidesRes.data ?? [];
-    if (sideRows.length !== input.side_ids.length) {
-      return { error: "Acompanhamento inválido." };
-    }
-    if (sideRows.some((s) => !s.available)) {
-      return { error: "Um ou mais acompanhamentos estão indisponíveis." };
-    }
-  }
-
-  const proteins = input.protein_ids.map((id) => {
-    const row = proteinRows.find((p) => p.id === id);
-    return { id, name: row?.name ?? id };
-  });
-  const sides = input.side_ids.map((id) => {
-    const row = sideRows.find((s) => s.id === id);
-    return { id, name: row?.name ?? id };
-  });
-
   const now = new Date();
   let sequence: number;
   try {
@@ -134,22 +54,27 @@ export async function supabaseCreateOrder(
     sequence = (count ?? 0) + 1;
   }
 
+  const first = items[0];
+  const firstProtein = first.proteins[0];
   const orderNumber = formatOrderNumber(now, sequence);
-  const firstProtein = proteins[0];
   const row = {
     order_number: orderNumber,
     customer_name: input.customer_name.trim(),
     customer_phone: normalizePhone(input.customer_phone),
     delivery_type: input.delivery_type,
     address: input.address?.trim() ?? null,
-    meal_type_id: meal.id,
-    meal_type_name: meal.name,
-    proteins,
+    items,
+    meal_type_id: first.meal_type_id,
+    meal_type_name:
+      items.length > 1
+        ? items.map((i) => i.meal_type_name).join(" + ")
+        : first.meal_type_name,
+    proteins: first.proteins,
     protein_id: firstProtein?.id ?? "",
     protein_name: firstProtein?.name ?? "",
-    sides,
+    sides: first.sides,
     notes: input.notes?.trim() ?? null,
-    total_cents: calculateTotalFromMeal(meal.price_cents, input.delivery_type),
+    total_cents: calculateOrderTotal(items, input.delivery_type),
     status: "awaiting_payment" as const,
   };
 

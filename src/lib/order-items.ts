@@ -1,4 +1,4 @@
-import type { MenuItemRef, Order } from "@/types/order";
+import type { MenuItemRef, Order, OrderLineItem } from "@/types/order";
 
 export function normalizeOrderProteins(
   row: Record<string, unknown>,
@@ -27,8 +27,29 @@ export function proteinsFromRow(row: Record<string, unknown>): {
   };
 }
 
+function normalizeOrderItems(row: Record<string, unknown>): OrderLineItem[] {
+  const raw = row.items;
+  if (Array.isArray(raw) && raw.length > 0) {
+    return raw as OrderLineItem[];
+  }
+  const { proteins } = proteinsFromRow(row);
+  const sides = (row.sides as OrderLineItem["sides"]) ?? [];
+  return [
+    {
+      meal_type_id: row.meal_type_id as string,
+      meal_type_name: row.meal_type_name as string,
+      proteins,
+      sides,
+      unit_price_cents: Number(row.total_cents ?? 0),
+    },
+  ];
+}
+
 export function mapOrderRow(row: Record<string, unknown>): Order {
+  const items = normalizeOrderItems(row);
+  const first = items[0];
   const { proteins, protein_id, protein_name } = proteinsFromRow(row);
+
   return {
     id: row.id as string,
     order_number: row.order_number as string,
@@ -36,12 +57,16 @@ export function mapOrderRow(row: Record<string, unknown>): Order {
     customer_phone: row.customer_phone as string,
     delivery_type: row.delivery_type as Order["delivery_type"],
     address: (row.address as string | null) ?? null,
-    meal_type_id: row.meal_type_id as string,
-    meal_type_name: row.meal_type_name as string,
-    proteins,
-    protein_id,
-    protein_name,
-    sides: row.sides as Order["sides"],
+    items,
+    meal_type_id: first?.meal_type_id ?? (row.meal_type_id as string),
+    meal_type_name:
+      items.length > 1
+        ? items.map((i) => i.meal_type_name).join(" + ")
+        : (first?.meal_type_name ?? (row.meal_type_name as string)),
+    proteins: first?.proteins ?? proteins,
+    protein_id: first?.proteins[0]?.id ?? protein_id,
+    protein_name: first?.proteins[0]?.name ?? protein_name,
+    sides: first?.sides ?? (row.sides as Order["sides"]),
     notes: (row.notes as string | null) ?? null,
     total_cents: row.total_cents as number,
     status: row.status as Order["status"],

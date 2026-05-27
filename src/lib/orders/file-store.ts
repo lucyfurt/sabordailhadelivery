@@ -1,12 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import {
-  calculateTotalFromMeal,
-  getFallbackMealType,
-  getProtein,
-  getSide,
-} from "@/lib/menu";
+import { buildLineItem, calculateOrderTotal } from "@/lib/orders/build-line-item";
 import { formatOrderNumber, todayKey } from "@/lib/order-number";
 import { normalizePhone } from "@/lib/phone";
 import type { CreateOrderInput, Order, OrderStatus } from "@/types/order";
@@ -54,45 +49,8 @@ async function nextSequence(): Promise<number> {
   return next;
 }
 
-function validateCreateInput(input: CreateOrderInput): string | null {
-  const meal = getFallbackMealType(input.meal_type_id);
-  if (!meal) return "Tipo de marmita inválido.";
-  if (!meal.available) return "Tipo de marmita indisponível.";
-
-  if (
-    meal.required_proteins > 0 &&
-    input.protein_ids.length !== meal.required_proteins
-  ) {
-    return `Selecione exatamente ${meal.required_proteins} proteína(s).`;
-  }
-  if (meal.required_proteins > 0) {
-    const uniqueP = new Set(input.protein_ids);
-    if (uniqueP.size !== meal.required_proteins) {
-      return "Não repita a mesma proteína.";
-    }
-    for (const id of input.protein_ids) {
-      const protein = getProtein(id);
-      if (!protein?.available) return "Proteína indisponível.";
-    }
-  }
-
-  if (meal.required_sides > 0 && input.side_ids.length < 1) {
-    return "Selecione pelo menos 1 acompanhamento.";
-  }
-  if (meal.required_sides > 0 && input.side_ids.length > meal.required_sides) {
-    return `Selecione no máximo ${meal.required_sides} acompanhamento(s).`;
-  }
-  if (meal.required_sides > 0) {
-    const uniqueS = new Set(input.side_ids);
-    if (uniqueS.size !== input.side_ids.length) {
-      return "Não repita o mesmo acompanhamento.";
-    }
-    for (const id of input.side_ids) {
-      const side = getSide(id);
-      if (!side?.available) return `Acompanhamento indisponível: ${id}`;
-    }
-  }
-
+function validateCustomer(input: CreateOrderInput): string | null {
+  if (!input.items?.length) return "Adicione pelo menos uma marmita ao pedido.";
   if (input.delivery_type === "delivery" && !input.address?.trim()) {
     return "Informe o endereço para entrega.";
   }
@@ -106,20 +64,20 @@ function validateCreateInput(input: CreateOrderInput): string | null {
 export async function fileCreateOrder(
   input: CreateOrderInput,
 ): Promise<{ order?: Order; error?: string }> {
-  const validation = validateCreateInput(input);
-  if (validation) return { error: validation };
+  const customerErr = validateCustomer(input);
+  if (customerErr) return { error: customerErr };
 
-  const meal = getFallbackMealType(input.meal_type_id)!;
-  const proteins = input.protein_ids.map((id) => {
-    const p = getProtein(id)!;
-    return { id: p.id, name: p.name };
-  });
-  const sides = input.side_ids.map((id) => {
-    const s = getSide(id)!;
-    return { id: s.id, name: s.name };
-  });
-  const first = proteins[0];
+  const items = [];
+  for (let i = 0; i < input.items.length; i++) {
+    const result = await buildLineItem(input.items[i]);
+    if (result.error) {
+      return { error: `Marmita ${i + 1}: ${result.error}` };
+    }
+    items.push(result.item!);
+  }
 
+  const first = items[0];
+  const firstProtein = first.proteins[0];
   const now = new Date();
   const sequence = await nextSequence();
   const order: Order = {
@@ -129,14 +87,18 @@ export async function fileCreateOrder(
     customer_phone: normalizePhone(input.customer_phone),
     delivery_type: input.delivery_type,
     address: input.address?.trim() ?? null,
-    meal_type_id: meal.id,
-    meal_type_name: meal.name,
-    proteins,
-    protein_id: first?.id ?? "",
-    protein_name: first?.name ?? "",
-    sides,
+    items,
+    meal_type_id: first.meal_type_id,
+    meal_type_name:
+      items.length > 1
+        ? items.map((i) => i.meal_type_name).join(" + ")
+        : first.meal_type_name,
+    proteins: first.proteins,
+    protein_id: firstProtein?.id ?? "",
+    protein_name: firstProtein?.name ?? "",
+    sides: first.sides,
     notes: input.notes?.trim() ?? null,
-    total_cents: calculateTotalFromMeal(meal.price_cents, input.delivery_type),
+    total_cents: calculateOrderTotal(items, input.delivery_type),
     status: "awaiting_payment",
     created_at: now.toISOString(),
     paid_at: null,

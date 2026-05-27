@@ -13,6 +13,7 @@ create table if not exists orders (
   protein_name text not null,
   proteins jsonb not null default '[]'::jsonb,
   sides jsonb not null,
+  items jsonb not null default '[]'::jsonb,
   notes text,
   total_cents integer not null,
   status text not null default 'awaiting_payment',
@@ -23,6 +24,9 @@ create table if not exists orders (
 
 create index if not exists orders_created_at_idx on orders (created_at desc);
 create index if not exists orders_order_number_idx on orders (order_number);
+
+-- Pedidos com várias marmitas (execute se a tabela já existir)
+alter table orders add column if not exists items jsonb not null default '[]'::jsonb;
 
 create table if not exists daily_counters (
   date_key text primary key,

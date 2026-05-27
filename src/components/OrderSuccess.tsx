@@ -4,7 +4,11 @@ import Link from "next/link";
 import { formatPrice } from "@/lib/menu";
 import { orderWhatsAppUrl } from "@/lib/whatsapp";
 import type { Order } from "@/types/order";
-import { ORDER_STATUS_LABELS, orderProteinLabel } from "@/types/order";
+import {
+  getOrderItems,
+  lineProteinLabel,
+  ORDER_STATUS_LABELS,
+} from "@/types/order";
 
 export function OrderSuccess({
   order,
@@ -14,6 +18,7 @@ export function OrderSuccess({
   isNew?: boolean;
 }) {
   const waUrl = orderWhatsAppUrl(order);
+  const items = getOrderItems(order);
 
   return (
     <div className="mx-auto max-w-lg space-y-6 rounded-2xl bg-white p-8 shadow-lg">
@@ -37,16 +42,43 @@ export function OrderSuccess({
         <p>
           <strong>Status:</strong> {ORDER_STATUS_LABELS[order.status]}
         </p>
-        <p>
-          <strong>Marmita:</strong> {order.meal_type_name}
-        </p>
-        <p>
-          <strong>Proteína(s):</strong> {orderProteinLabel(order)}
-        </p>
-        <p>
-          <strong>Acompanhamentos:</strong>{" "}
-          {order.sides.map((s) => s.name).join(", ")}
-        </p>
+        {items.length === 1 ? (
+          <>
+            <p>
+              <strong>Marmita:</strong> {items[0].meal_type_name}
+            </p>
+            <p>
+              <strong>Proteína(s):</strong> {lineProteinLabel(items[0])}
+            </p>
+            <p>
+              <strong>Acompanhamentos:</strong>{" "}
+              {items[0].sides.map((s) => s.name).join(", ") || "—"}
+            </p>
+          </>
+        ) : (
+          <div>
+            <p className="font-medium">
+              Marmitas ({items.length})
+            </p>
+            <ul className="mt-1 space-y-2 pl-0">
+              {items.map((item, i) => (
+                <li key={i} className="rounded-lg bg-gray-50 p-2">
+                  <p>
+                    <strong>{item.meal_type_name}</strong> —{" "}
+                    {formatPrice(item.unit_price_cents)}
+                  </p>
+                  <p className="text-gray-600">
+                    Proteína(s): {lineProteinLabel(item)}
+                  </p>
+                  <p className="text-gray-600">
+                    Acompanhamentos:{" "}
+                    {item.sides.map((s) => s.name).join(", ") || "—"}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <p>
           <strong>Total:</strong> {formatPrice(order.total_cents)}
         </p>
