@@ -9,7 +9,7 @@ import {
   ordersByHour,
 } from "@/lib/reports";
 import { formatPhoneDisplay } from "@/lib/phone";
-import { orderWhatsAppUrl } from "@/lib/whatsapp";
+import { adminOrderWhatsAppUrl } from "@/lib/whatsapp";
 import type { Order, OrderStatus } from "@/types/order";
 import { ORDER_STATUS_LABELS } from "@/types/order";
 import { AdminMealTypesManager } from "@/components/AdminMealTypesManager";
@@ -235,12 +235,7 @@ export function AdminDashboard() {
                 <button
                   type="button"
                   onClick={() => {
-                    const selectedStatus = order.status;
-                    const url = orderWhatsAppUrl({
-                      ...order,
-                      // garante que o texto do WhatsApp reflita o status atual
-                      status: selectedStatus,
-                    });
+                    const url = adminOrderWhatsAppUrl(order);
                     window.open(url, "_blank", "noopener,noreferrer");
                   }}
                   className="rounded-lg bg-green-600 px-3 py-1 text-sm font-medium text-white"
