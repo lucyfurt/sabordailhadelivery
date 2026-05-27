@@ -5,6 +5,13 @@ import { normalizePhone } from "@/lib/phone";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import type { CreateOrderInput, Order, OrderStatus } from "@/types/order";
 
+function isMissingItemsColumnError(message: string): boolean {
+  return (
+    message.includes("Could not find the 'items' column of 'orders'") ||
+    message.includes("column \"items\" of relation \"orders\" does not exist")
+  );
+}
+
 function validateCustomer(input: CreateOrderInput): string | null {
   if (!input.items?.length) return "Adicione pelo menos uma marmita ao pedido.";
   if (input.delivery_type === "delivery" && !input.address?.trim()) {
@@ -84,7 +91,15 @@ export async function supabaseCreateOrder(
     .select()
     .single();
 
-  if (error) return { error: error.message };
+  if (error) {
+    if (isMissingItemsColumnError(error.message ?? "")) {
+      return {
+        error:
+          "A coluna orders.items não existe no banco atual. Rode a migração no Supabase: alter table orders add column if not exists items jsonb not null default '[]'::jsonb; e tente novamente.",
+      };
+    }
+    return { error: error.message };
+  }
   return { order: mapOrderRow(data) };
 }
 
