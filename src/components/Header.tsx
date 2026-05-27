@@ -13,7 +13,7 @@ export function Header() {
             href="/cardapio"
             className="rounded-full bg-orange-500 px-4 py-2 text-white hover:bg-orange-600"
           >
-            Montar pedido
+            Abrir cardápio
           </Link>
         </nav>
       </div>

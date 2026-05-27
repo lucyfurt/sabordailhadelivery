@@ -5,6 +5,7 @@ export const STORE = {
   instagram: "https://www.instagram.com/sabordailhad/",
   deliveryFeeCents: 500,
   /** Horário exibido no cardápio (ajuste conforme sua operação) */
-  hours: "Seg–Sáb, 10h às 14h",
+  hours: "Seg–Sex, 10h às 14h",
   city: "São Luís — MA",
+  desenvolvedor: "Ilha 3D Studio",
 } as const;

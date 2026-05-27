@@ -8,7 +8,7 @@ export default function CardapioPage() {
       <main className="mx-auto max-w-5xl px-4 py-10">
         <h1 className="text-3xl font-bold">Monte seu pedido</h1>
         <p className="mt-2 text-gray-600">
-          Escolha sua marmita, 1 proteína e exatamente 4 acompanhamentos.
+          Escolha sua marmita com proteínas e acompanhamentos personalizados.
         </p>
         <div className="mt-8">
           <OrderBuilder />
