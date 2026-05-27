@@ -23,6 +23,7 @@ export function AdminMealTypesManager() {
   >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
@@ -43,7 +44,10 @@ export function AdminMealTypesManager() {
   async function load() {
     setLoading(true);
     setError("");
-    const res = await fetch("/api/admin/menu/meal-types");
+    setNotice("");
+    const res = await fetch("/api/admin/menu/meal-types", {
+      cache: "no-store",
+    });
     const data = await res.json();
     if (!res.ok) {
       setError(data.error ?? "Erro ao carregar.");
@@ -51,8 +55,8 @@ export function AdminMealTypesManager() {
     } else {
       setItems(data.items ?? []);
       const [pRes, sRes] = await Promise.all([
-        fetch("/api/admin/menu/proteins"),
-        fetch("/api/admin/menu/sides"),
+        fetch("/api/admin/menu/proteins", { cache: "no-store" }),
+        fetch("/api/admin/menu/sides", { cache: "no-store" }),
       ]);
       const pData = await pRes.json();
       const sData = await sRes.json();
@@ -62,7 +66,9 @@ export function AdminMealTypesManager() {
       const ids = (data.items ?? []).map((it: MealTypeItem) => it.id);
       const pairs = await Promise.all(
         ids.map(async (id: string) => {
-          const r = await fetch(`/api/admin/menu/meal-types/${id}/items`);
+          const r = await fetch(`/api/admin/menu/meal-types/${id}/items`, {
+            cache: "no-store",
+          });
           const d = await r.json();
           return [id, { protein_ids: d.protein_ids ?? [], side_ids: d.side_ids ?? [] }] as const;
         }),
@@ -80,6 +86,7 @@ export function AdminMealTypesManager() {
 
   async function create() {
     setError("");
+    setNotice("");
     const res = await fetch("/api/admin/menu/meal-types", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -107,6 +114,7 @@ export function AdminMealTypesManager() {
   }
 
   async function patch(id: string, body: Partial<MealTypeItem>) {
+    setNotice("");
     const res = await fetch(`/api/admin/menu/meal-types/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -121,6 +129,7 @@ export function AdminMealTypesManager() {
   }
 
   async function remove(id: string) {
+    setNotice("");
     if (!confirm("Excluir este tipo de marmita?")) return;
     const res = await fetch(`/api/admin/menu/meal-types/${id}`, {
       method: "DELETE",
@@ -152,6 +161,8 @@ export function AdminMealTypesManager() {
   }
 
   async function saveMealLinks(mealTypeId: string) {
+    setError("");
+    setNotice("");
     const payload = links[mealTypeId] ?? { protein_ids: [], side_ids: [] };
     const res = await fetch(`/api/admin/menu/meal-types/${mealTypeId}/items`, {
       method: "PUT",
@@ -161,7 +172,10 @@ export function AdminMealTypesManager() {
     const data = await res.json();
     if (!res.ok) {
       setError(data.error ?? "Erro ao salvar itens da marmita.");
+      return;
     }
+    await load();
+    setNotice("Itens da marmita salvos com sucesso.");
   }
 
   return (
@@ -235,6 +249,11 @@ export function AdminMealTypesManager() {
       {error && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
+        </p>
+      )}
+      {notice && (
+        <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">
+          {notice}
         </p>
       )}
 
