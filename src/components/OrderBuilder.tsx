@@ -7,6 +7,7 @@ import {
   DELIVERY_FEE_CENTS,
   formatPrice,
 } from "@/lib/menu";
+import { STORE } from "@/lib/store";
 import type { CreateOrderLineInput } from "@/types/order";
 import type { DeliveryType } from "@/types/order";
 import type { AdditionalItem, MealTypeItem, MenuItem } from "@/types/menu";
@@ -629,14 +630,16 @@ export function OrderBuilder() {
 
           <div className="flex gap-4">
             <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-xl border-2 border-gray-200 p-4 has-checked:border-orange-500 has-checked:bg-orange-50">
+
               <input
                 type="radio"
                 name="delivery"
                 checked={deliveryType === "pickup"}
                 onChange={() => setDeliveryType("pickup")}
               />
-              Retirada
+              Retirada              
             </label>
+            
             <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-xl border-2 border-gray-200 p-4 has-checked:border-orange-500 has-checked:bg-orange-50">
               <input
                 type="radio"
@@ -646,6 +649,10 @@ export function OrderBuilder() {
               />
               Entrega (+{formatPrice(DELIVERY_FEE_CENTS)})
             </label>
+          </div>
+          <div className="rounded-xl bg-gray-50 p-3 text-sm text-gray-700">
+            <p className="font-semibold">Retirada no local</p>
+            <p>{STORE.pickupAddress}</p>
           </div>
 
           {deliveryType === "delivery" && (

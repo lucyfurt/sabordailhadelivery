@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { formatPrice } from "@/lib/menu";
+import { STORE } from "@/lib/store";
 import { orderWhatsAppUrl } from "@/lib/whatsapp";
 import type { Order } from "@/types/order";
 import {
@@ -17,8 +19,20 @@ export function OrderSuccess({
   order: Order;
   isNew?: boolean;
 }) {
+  const [copied, setCopied] = useState(false);
   const waUrl = orderWhatsAppUrl(order);
   const items = getOrderItems(order);
+
+  async function copyPixCode() {
+    if (!STORE.pixCopyCode) return;
+    try {
+      await navigator.clipboard.writeText(STORE.pixCopyCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-lg space-y-6 rounded-2xl bg-white p-8 shadow-lg">
@@ -82,6 +96,11 @@ export function OrderSuccess({
         <p>
           <strong>Total:</strong> {formatPrice(order.total_cents)}
         </p>
+        {order.delivery_type === "pickup" && (
+          <p>
+            <strong>Retirada em:</strong> {STORE.pickupAddress}
+          </p>
+        )}
         {order.additionals.length > 0 && (
           <div className="rounded-lg bg-orange-50 p-3">
             <p>
@@ -101,14 +120,31 @@ export function OrderSuccess({
         )}
       </div>
 
+      {STORE.pixCopyCode && (
+        <div className="space-y-2 rounded-xl border border-green-200 bg-green-50 p-4">
+          <p className="text-sm font-medium text-green-900">
+            Pague com PIX e envie o comprovante para o WhatsApp.
+            obs: pagamentos via cartão ou dinheiro deverão ser comunicados no WhatsApp
+          </p>
+          <textarea
+            readOnly
+            value={STORE.pixCopyCode}
+            className="h-24 w-full rounded-lg border border-green-200 bg-white p-2 text-xs text-gray-800"
+          />
+          <button
+            type="button"
+            onClick={copyPixCode}
+            className="w-full rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700"
+          >
+            {copied ? "Código PIX copiado!" : "Copiar código PIX"}
+          </button>
+        </div>
+      )}
+
       {isNew && (
         <div className="space-y-3 rounded-xl border border-green-200 bg-green-50 p-4 text-sm">
-          <p className="font-medium text-green-900">
-            Próximo passo: pagar via PIX no WhatsApp
-          </p>
           <p className="text-green-800">
-            Toque no botão abaixo para enviar seu pedido. Você receberá a chave
-            PIX e confirma o pagamento por lá.
+            Toque no botão abaixo para confirmar seu pedido.
           </p>
           <a
             href={waUrl}
@@ -122,7 +158,7 @@ export function OrderSuccess({
       )}
 
       <p className="text-center text-xs text-gray-500">
-        Guarde o número <strong>#{order.order_number}</strong> para consultar o
+        Guarde o número <strong>#{order.order_number}</strong> para receber o seu
         status.
       </p>
 
