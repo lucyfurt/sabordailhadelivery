@@ -279,7 +279,7 @@ export function OrderBuilder() {
       {step === "sides" && requiredSides > 0 && (
         <section className="space-y-4">
           <p className="text-sm text-gray-600">
-            Escolha exatamente {requiredSides} acompanhamento
+            Escolha de 1 até {requiredSides} acompanhamento
             {requiredSides > 1 ? "s" : ""} ({sideIds.length}/{requiredSides})
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -321,7 +321,7 @@ export function OrderBuilder() {
             </button>
             <button
               type="button"
-              disabled={sideIds.length !== requiredSides}
+              disabled={sideIds.length < 1}
               onClick={() => goNext("sides")}
               className="rounded-xl bg-orange-500 px-6 py-3 font-bold text-white disabled:opacity-40"
             >

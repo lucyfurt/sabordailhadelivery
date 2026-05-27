@@ -76,12 +76,15 @@ function validateCreateInput(input: CreateOrderInput): string | null {
     }
   }
 
-  if (meal.required_sides > 0 && input.side_ids.length !== meal.required_sides) {
-    return `Selecione exatamente ${meal.required_sides} acompanhamento(s).`;
+  if (meal.required_sides > 0 && input.side_ids.length < 1) {
+    return "Selecione pelo menos 1 acompanhamento.";
+  }
+  if (meal.required_sides > 0 && input.side_ids.length > meal.required_sides) {
+    return `Selecione no máximo ${meal.required_sides} acompanhamento(s).`;
   }
   if (meal.required_sides > 0) {
     const uniqueS = new Set(input.side_ids);
-    if (uniqueS.size !== meal.required_sides) {
+    if (uniqueS.size !== input.side_ids.length) {
       return "Não repita o mesmo acompanhamento.";
     }
     for (const id of input.side_ids) {

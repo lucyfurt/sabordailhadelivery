@@ -27,12 +27,15 @@ function validateBasics(
     }
   }
 
-  if (reqS > 0 && input.side_ids.length !== reqS) {
-    return `Selecione exatamente ${reqS} acompanhamento(s).`;
+  if (reqS > 0 && input.side_ids.length < 1) {
+    return "Selecione pelo menos 1 acompanhamento.";
+  }
+  if (reqS > 0 && input.side_ids.length > reqS) {
+    return `Selecione no máximo ${reqS} acompanhamento(s).`;
   }
   if (reqS > 0) {
     const uniqueS = new Set(input.side_ids);
-    if (uniqueS.size !== reqS) {
+    if (uniqueS.size !== input.side_ids.length) {
       return "Não repita o mesmo acompanhamento.";
     }
   }
@@ -102,7 +105,7 @@ export async function supabaseCreateOrder(
       .in("id", input.side_ids);
     if (sidesRes.error) return { error: sidesRes.error.message };
     sideRows = sidesRes.data ?? [];
-    if (sideRows.length !== meal.required_sides) {
+    if (sideRows.length !== input.side_ids.length) {
       return { error: "Acompanhamento inválido." };
     }
     if (sideRows.some((s) => !s.available)) {
