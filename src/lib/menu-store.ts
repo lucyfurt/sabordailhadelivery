@@ -223,21 +223,33 @@ export async function adminCreateMealType(input: {
   if (proteinIdsRes.error) return { error: proteinIdsRes.error.message };
   if (sideIdsRes.error) return { error: sideIdsRes.error.message };
   if ((proteinIdsRes.data ?? []).length > 0) {
-    const { error: linkError } = await supabase.from("meal_type_proteins").insert(
-      (proteinIdsRes.data ?? []).map((p) => ({
-        meal_type_id: mealTypeId,
-        protein_id: p.id as string,
-      })),
-    );
+    const { error: linkError } = await supabase
+      .from("meal_type_proteins")
+      .upsert(
+        (proteinIdsRes.data ?? []).map((p) => ({
+          meal_type_id: mealTypeId,
+          protein_id: p.id as string,
+        })),
+        {
+          onConflict: "meal_type_id,protein_id",
+          ignoreDuplicates: true,
+        },
+      );
     if (linkError) return { error: linkError.message };
   }
   if ((sideIdsRes.data ?? []).length > 0) {
-    const { error: linkError } = await supabase.from("meal_type_sides").insert(
-      (sideIdsRes.data ?? []).map((s) => ({
-        meal_type_id: mealTypeId,
-        side_id: s.id as string,
-      })),
-    );
+    const { error: linkError } = await supabase
+      .from("meal_type_sides")
+      .upsert(
+        (sideIdsRes.data ?? []).map((s) => ({
+          meal_type_id: mealTypeId,
+          side_id: s.id as string,
+        })),
+        {
+          onConflict: "meal_type_id,side_id",
+          ignoreDuplicates: true,
+        },
+      );
     if (linkError) return { error: linkError.message };
   }
   return { item: mapMealType(data) };
@@ -369,15 +381,30 @@ export async function adminSetMealTypeItems(
   if (delS.error) return { error: delS.error.message };
 
   if (uniqueProteins.length > 0) {
-    const { error } = await supabase.from("meal_type_proteins").insert(
-      uniqueProteins.map((protein_id) => ({ meal_type_id: mealTypeId, protein_id })),
-    );
+    const { error } = await supabase
+      .from("meal_type_proteins")
+      .upsert(
+        uniqueProteins.map((protein_id) => ({
+          meal_type_id: mealTypeId,
+          protein_id,
+        })),
+        {
+          onConflict: "meal_type_id,protein_id",
+          ignoreDuplicates: true,
+        },
+      );
     if (error) return { error: error.message };
   }
   if (uniqueSides.length > 0) {
-    const { error } = await supabase.from("meal_type_sides").insert(
-      uniqueSides.map((side_id) => ({ meal_type_id: mealTypeId, side_id })),
-    );
+    const { error } = await supabase
+      .from("meal_type_sides")
+      .upsert(
+        uniqueSides.map((side_id) => ({ meal_type_id: mealTypeId, side_id })),
+        {
+          onConflict: "meal_type_id,side_id",
+          ignoreDuplicates: true,
+        },
+      );
     if (error) return { error: error.message };
   }
 
