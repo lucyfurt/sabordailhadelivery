@@ -10,7 +10,7 @@ export const STORE = {
   pixCopyCode:
     process.env.NEXT_PUBLIC_PIX_COPY_CODE ?? "989992019061",
   /** Horário exibido no cardápio (ajuste conforme sua operação) */
-  hours: "Seg–Sex, 10h às 14h",
+  hours: "Seg–Sex, 10:30h às 14h",
   city: "São Luís — MA",
   desenvolvedor: "Ilha 3D Studio",
 } as const;
